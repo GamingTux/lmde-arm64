@@ -1,0 +1,11 @@
+*.img
+*.img.xz
+*.info
+*.log
+SHA256SUMS.txt
+repo/
+work/
+deploy/
+pi-gen/work/
+pi-gen/deploy/
+.build_failed
