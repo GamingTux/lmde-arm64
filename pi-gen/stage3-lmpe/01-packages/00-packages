@@ -53,3 +53,9 @@ chromium
 chromium-l10n
 rpi-chromium-mods
 libwidevinecdm0
+dkms
+device-tree-compiler
+i2c-tools
+ddcutil
+irqbalance
+systemd-resolved
