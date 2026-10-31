@@ -11,8 +11,21 @@ export DEB_LDFLAGS_MAINT_APPEND="-flto=auto"
 ROOT_DIR="$(pwd)"
 REPO_DIR="$ROOT_DIR/repo"
 PACKAGES_FILE="$REPO_DIR/dists/gigi/main/binary-arm64/Packages"
+SUMMARY_FILE="${GITHUB_STEP_SUMMARY:-/tmp/github_step_summary.md}"
 
 mkdir -p "$REPO_DIR/pool/main" "$REPO_DIR/dists/gigi/main/binary-arm64"
+rm -f "$ROOT_DIR/.build_failed"
+
+TOTAL="$(grep -vE '^\s*(#|$)' "$ROOT_DIR/packages.txt" | wc -l | xargs)"
+CURRENT=0
+BUILD_FAILED=0
+
+{
+  echo "## 🛠️ LMPE ARM64 (Cortex-A76) Build-Dashboard"
+  echo ""
+  echo "| # | Paket | Version | Optimierung | Status | Dauer |"
+  echo "|---|---|---|---|---|---|"
+} >> "$SUMMARY_FILE"
 
 while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
   # Kommentare und Leerzeilen ignorieren
@@ -20,9 +33,10 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
   pkg="$(echo "$line" | xargs)"
   [[ -z "$pkg" ]] && continue
 
-  echo "===================================================================="
-  echo ">>> Verarbeite Paket: $pkg"
-  echo "===================================================================="
+  CURRENT=$((CURRENT + 1))
+  PKG_START_TIME="$(date +%s)"
+  LOG_FILE="/tmp/build-${pkg}.log"
+  : > "$LOG_FILE"
 
   # 1. Optimierungsstufe setzen (-O3 für Stufe 0, -O2 für Stufe 1)
   case "$pkg" in
@@ -43,22 +57,24 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
   fi
 
   UPSTREAM_VER=""
-  for v in $(apt-cache showsrc "$QUERY_PKG" | awk '/^Version:/ {print $2}'); do
+  for v in $(apt-cache showsrc "$QUERY_PKG" 2>/dev/null | awk '/^Version:/ {print $2}'); do
     if [[ -z "$UPSTREAM_VER" ]] || dpkg --compare-versions "$v" gt "$UPSTREAM_VER"; then
       UPSTREAM_VER="$v"
     fi
   done
 
-  SRC_NAME="$(apt-cache showsrc "$QUERY_PKG" | awk '/^Package:/ {print $2; exit}')"
+  SRC_NAME="$(apt-cache showsrc "$QUERY_PKG" 2>/dev/null | awk '/^Package:/ {print $2; exit}')"
   [[ -z "$SRC_NAME" ]] && SRC_NAME="$QUERY_PKG"
 
   if [[ -z "$UPSTREAM_VER" ]]; then
-    echo "FEHLER: Konnte Upstream-Version für $pkg ($QUERY_PKG) nicht ermitteln!" >&2
-    exit 1
+    DURATION=$(( $(date +%s) - PKG_START_TIME ))
+    echo "[$(date -u '+%H:%M:%S')] ❌ [$CURRENT/$TOTAL] Konnte Upstream-Version für $pkg ($QUERY_PKG) nicht ermitteln!"
+    echo "| $CURRENT/$TOTAL | \`$pkg\` | \`n/a\` | \`$OPT_LEVEL\` | ❌ Fehler | ${DURATION}s |" >> "$SUMMARY_FILE"
+    BUILD_FAILED=1
+    break
   fi
 
   TARGET_VER="${UPSTREAM_VER}+pi5"
-  echo ">>> Quellpaket: $SRC_NAME | Upstream-Version: $UPSTREAM_VER | Ziel-Version: $TARGET_VER"
 
   # 3. Prüfen, ob im bestehenden Packages-Index bereits <upstream_version>+pi5 existiert
   DELTA_HIT=0
@@ -107,13 +123,22 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
 
   # 4. Delta-Build-Treffer: Kompilieren überspringen, aber .deb-Pakete im Container installieren
   if [[ "$DELTA_HIT" -eq 1 ]]; then
-    echo ">>> Delta-Build-Treffer für $pkg ($TARGET_VER). Überspringe Neubau und installiere vorhandene .deb-Pakete..."
-    dpkg -i "${EXISTING_DEBS[@]}" || apt-get install -f -y
+    if ! (dpkg -i "${EXISTING_DEBS[@]}" < /dev/null >> "$LOG_FILE" 2>&1 || apt-get install -f -y < /dev/null >> "$LOG_FILE" 2>&1); then
+      DURATION=$(( $(date +%s) - PKG_START_TIME ))
+      echo "[$(date -u '+%H:%M:%S')] ❌ [$CURRENT/$TOTAL] Fehler beim Installieren der gecachten .deb-Pakete für $pkg!"
+      tail -n 100 "$LOG_FILE" || true
+      echo "| $CURRENT/$TOTAL | \`$pkg\` | \`$TARGET_VER\` | \`$OPT_LEVEL\` | ❌ Fehler | ${DURATION}s |" >> "$SUMMARY_FILE"
+      BUILD_FAILED=1
+      break
+    fi
+    DURATION=$(( $(date +%s) - PKG_START_TIME ))
+    echo "[$(date -u '+%H:%M:%S')] ⏭️ [$CURRENT/$TOTAL] $pkg übersprungen (bereits aktuell im Repo)"
+    echo "| $CURRENT/$TOTAL | \`$pkg\` | \`$TARGET_VER\` | \`$OPT_LEVEL\` | ⏭️ Delta-Skip | ${DURATION}s |" >> "$SUMMARY_FILE"
     continue
   fi
 
   # 5. Neubau nötig
-  echo ">>> Baue $pkg ($TARGET_VER) neu..."
+  echo "[$(date -u '+%H:%M:%S')] 🚀 [$CURRENT/$TOTAL] Starte $pkg ($UPSTREAM_VER) [Flags: $OPT_LEVEL]..."
 
   # Alte .deb-Dateien dieses Quellpakets aus ./repo/pool/main/ löschen
   if [[ -s "$PACKAGES_FILE" ]]; then
@@ -146,70 +171,145 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
     fi
   done
 
-  # Quellcode in /tmp/build/<pkg> laden
+  # Quellcode laden, patchen und Build-Abhängigkeiten installieren
+  STEP_OK=1
   rm -rf "/tmp/build/$pkg"
   mkdir -p "/tmp/build/$pkg"
   cd "/tmp/build/$pkg"
-  apt-get source "${SRC_NAME}=${UPSTREAM_VER}" || apt-get source "$QUERY_PKG"
+
+  if ! (apt-get source "${SRC_NAME}=${UPSTREAM_VER}" < /dev/null >> "$LOG_FILE" 2>&1 || apt-get source "$QUERY_PKG" < /dev/null >> "$LOG_FILE" 2>&1); then
+    STEP_OK=0
+  fi
 
   SRC_DIR="$(find "/tmp/build/$pkg" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
-  if [[ -z "$SRC_DIR" ]]; then
-    echo "FEHLER: Kein Quellverzeichnis für $pkg in /tmp/build/$pkg gefunden!" >&2
-    exit 1
-  fi
-  cd "$SRC_DIR"
-
-  # Falls <pkg> == mint-info-gigi: Patche debian/control
-  if [[ "$pkg" == "mint-info-gigi" ]]; then
-    sed -i 's/^Architecture:.*amd64.*/Architecture: arm64/' debian/control
+  if [[ "$STEP_OK" -eq 1 && -z "$SRC_DIR" ]]; then
+    echo "FEHLER: Kein Quellverzeichnis für $pkg in /tmp/build/$pkg gefunden!" >> "$LOG_FILE"
+    STEP_OK=0
   fi
 
-  # Lokales Versions-Suffix +pi5 an den Changelog anhängen (--force-distribution & < /dev/null verhindert interaktiven Prompt)
-  DEBEMAIL="builder@localhost" DEBFULLNAME="LMPE Builder" dch --force-distribution --local +pi5 --distribution gigi "Compiled for Raspberry Pi 5 Cortex-A76" < /dev/null
-  sed -i '1s/+pi51)/+pi5)/' debian/changelog
+  if [[ "$STEP_OK" -eq 1 ]]; then
+    cd "$SRC_DIR"
 
-  # Build-Abhängigkeiten installieren
-  apt-get build-dep -y ./ < /dev/null
+    # Falls <pkg> == mint-info-gigi: Patche debian/control
+    if [[ "$pkg" == "mint-info-gigi" ]]; then
+      sed -i 's/^Architecture:.*amd64.*/Architecture: arm64/' debian/control
+    fi
 
-  # Paket kompilieren
-  dpkg-buildpackage -b -uc -us -j$(nproc) < /dev/null
+    # Lokales Versions-Suffix +pi5 an den Changelog anhängen
+    if ! DEBEMAIL="builder@localhost" DEBFULLNAME="LMPE Builder" dch --force-distribution --local +pi5 --distribution gigi "Compiled for Raspberry Pi 5 Cortex-A76" < /dev/null >> "$LOG_FILE" 2>&1; then
+      STEP_OK=0
+    else
+      sed -i '1s/+pi51)/+pi5)/' debian/changelog
+    fi
+  fi
 
-  # Debug-Pakete löschen
-  rm -f ../*dbgsym*.deb ../*-dbg_*.deb ../*.ddeb
+  if [[ "$STEP_OK" -eq 1 ]]; then
+    if ! apt-get build-dep -y ./ < /dev/null >> "$LOG_FILE" 2>&1; then
+      STEP_OK=0
+    fi
+  fi
 
-  # Frisch gebaute .deb-Pakete direkt im Container installieren und in den Pool verschieben
-  dpkg -i ../*.deb < /dev/null || apt-get install -f -y < /dev/null
-  mv -f ../*.deb "$REPO_DIR/pool/main/"
+  # Paket kompilieren mit 60-Sekunden-Heartbeat
+  if [[ "$STEP_OK" -eq 1 ]]; then
+    dpkg-buildpackage -b -uc -us -j"$(nproc)" < /dev/null >> "$LOG_FILE" 2>&1 &
+    BUILD_PID=$!
 
-  # Build-Verzeichnis aufräumen
+    (
+      ELAPSED=0
+      while kill -0 "$BUILD_PID" 2>/dev/null; do
+        sleep 60
+        if kill -0 "$BUILD_PID" 2>/dev/null; then
+          ELAPSED=$((ELAPSED + 60))
+          echo "   ⏱️ [$CURRENT/$TOTAL] $pkg kompiliert noch... (${ELAPSED}s)"
+        fi
+      done
+    ) &
+    HEARTBEAT_PID=$!
+
+    if wait "$BUILD_PID"; then
+      BUILD_RC=0
+    else
+      BUILD_RC=$?
+    fi
+
+    kill "$HEARTBEAT_PID" 2>/dev/null || true
+    wait "$HEARTBEAT_PID" 2>/dev/null || true
+
+    if [[ "$BUILD_RC" -ne 0 ]]; then
+      STEP_OK=0
+    fi
+  fi
+
+  # Debug-Pakete löschen, .deb-Pakete installieren und in den Pool verschieben
+  if [[ "$STEP_OK" -eq 1 ]]; then
+    rm -f ../*dbgsym*.deb ../*-dbg_*.deb ../*.ddeb
+    if ! (dpkg -i ../*.deb < /dev/null >> "$LOG_FILE" 2>&1 || apt-get install -f -y < /dev/null >> "$LOG_FILE" 2>&1); then
+      STEP_OK=0
+    else
+      mv -f ../*.deb "$REPO_DIR/pool/main/"
+    fi
+  fi
+
   cd "$ROOT_DIR"
   rm -rf "/tmp/build/$pkg"
+  DURATION=$(( $(date +%s) - PKG_START_TIME ))
+
+  if [[ "$STEP_OK" -ne 1 ]]; then
+    echo "[$(date -u '+%H:%M:%S')] ❌ [$CURRENT/$TOTAL] Fehler bei $pkg nach ${DURATION}s! Letzte 100 Zeilen aus $LOG_FILE:"
+    echo "--------------------------------------------------------------------"
+    tail -n 100 "$LOG_FILE" || true
+    echo "--------------------------------------------------------------------"
+    echo "| $CURRENT/$TOTAL | \`$pkg\` | \`$TARGET_VER\` | \`$OPT_LEVEL\` | ❌ Fehler | ${DURATION}s |" >> "$SUMMARY_FILE"
+    BUILD_FAILED=1
+    break
+  fi
+
+  rm -f "$LOG_FILE"
+  echo "[$(date -u '+%H:%M:%S')] ✅ [$CURRENT/$TOTAL] $pkg fertig gebaut in ${DURATION}s"
+  echo "| $CURRENT/$TOTAL | \`$pkg\` | \`$TARGET_VER\` | \`$OPT_LEVEL\` | ✅ Gebaut | ${DURATION}s |" >> "$SUMMARY_FILE"
 
 done 3< "$ROOT_DIR/packages.txt"
 
-# Repository-Metadaten generieren und signieren
+# Repository-Metadaten generieren und signieren (auch bei Teil-Erfolg / BUILD_FAILED=1!)
 cd "$REPO_DIR"
 
-dpkg-scanpackages --arch arm64 pool/ > dists/gigi/main/binary-arm64/Packages
-gzip -9c dists/gigi/main/binary-arm64/Packages > dists/gigi/main/binary-arm64/Packages.gz
+if compgen -G "pool/main/*.deb" > /dev/null; then
+  echo "[$(date -u '+%H:%M:%S')] 📦 Generiere APT-Repository-Index und GPG-Signaturen..."
+  dpkg-scanpackages --arch arm64 pool/ > dists/gigi/main/binary-arm64/Packages 2>/dev/null
+  gzip -9c dists/gigi/main/binary-arm64/Packages > dists/gigi/main/binary-arm64/Packages.gz
 
-apt-ftparchive \
-  -o APT::FTPArchive::Release::Origin="LMPE" \
-  -o APT::FTPArchive::Release::Label="LMPE" \
-  -o APT::FTPArchive::Release::Suite="gigi" \
-  -o APT::FTPArchive::Release::Codename="gigi" \
-  -o APT::FTPArchive::Release::Architectures="arm64" \
-  -o APT::FTPArchive::Release::Components="main" \
-  release dists/gigi > dists/gigi/Release
+  apt-ftparchive \
+    -o APT::FTPArchive::Release::Origin="LMPE" \
+    -o APT::FTPArchive::Release::Label="LMPE" \
+    -o APT::FTPArchive::Release::Suite="gigi" \
+    -o APT::FTPArchive::Release::Codename="gigi" \
+    -o APT::FTPArchive::Release::Architectures="arm64" \
+    -o APT::FTPArchive::Release::Components="main" \
+    release dists/gigi > dists/gigi/Release
 
-export GNUPGHOME="$(mktemp -d)"
-chmod 700 "$GNUPGHOME"
-echo "$GPG_PRIVATE_KEY" | gpg --batch --yes --import
+  export GNUPGHOME="$(mktemp -d)"
+  chmod 700 "$GNUPGHOME"
+  echo "$GPG_PRIVATE_KEY" | gpg --batch --yes --import 2>/dev/null
 
-rm -f dists/gigi/InRelease dists/gigi/Release.gpg lmde-arm64.gpg
-gpg --batch --yes --digest-algo SHA512 --clearsign -o dists/gigi/InRelease dists/gigi/Release
-gpg --batch --yes --digest-algo SHA512 -abs -o dists/gigi/Release.gpg dists/gigi/Release
-gpg --batch --yes --export > lmde-arm64.gpg
+  rm -f dists/gigi/InRelease dists/gigi/Release.gpg lmde-arm64.gpg
+  gpg --batch --yes --digest-algo SHA512 --clearsign -o dists/gigi/InRelease dists/gigi/Release
+  gpg --batch --yes --digest-algo SHA512 -abs -o dists/gigi/Release.gpg dists/gigi/Release
+  gpg --batch --yes --export > lmde-arm64.gpg
 
-rm -rf "$GNUPGHOME"
-echo ">>> APT-Repository erfolgreich erstellt und signiert."
+  rm -rf "$GNUPGHOME"
+  echo "[$(date -u '+%H:%M:%S')] 🔐 APT-Repository erfolgreich signiert."
+else
+  echo "[$(date -u '+%H:%M:%S')] ⚠️ Keine .deb-Pakete in pool/main vorhanden – überspringe Signierung."
+fi
+
+cd "$ROOT_DIR"
+if [[ -n "${GITHUB_ENV:-}" ]]; then
+  echo "BUILD_FAILED=${BUILD_FAILED}" >> "$GITHUB_ENV"
+fi
+
+if [[ "$BUILD_FAILED" -eq 1 ]]; then
+  touch "$ROOT_DIR/.build_failed"
+  echo "[$(date -u '+%H:%M:%S')] ⚠️ Lauf mit Fehlern beendet (BUILD_FAILED=1). Bisher gebaute Pakete werden als Partial-Deploy gesichert."
+else
+  echo "[$(date -u '+%H:%M:%S')] 🎉 Alle $TOTAL Pakete erfolgreich verarbeitet!"
+fi
