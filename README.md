@@ -26,8 +26,8 @@ The official Linux Mint distribution is beloved for its elegance, stability, and
 **LMPE (Linux Mint Pi Edition)** bridges this gap. It provides:
 1. **Ready-to-Flash Bootable OS Images** with a modern **Btrfs** root filesystem (transparent Zstandard compression).
 2. **Dedicated GPG-Signed APT Repository** containing over **160+ packages** recompiled with Cortex-A76 SIMD vectorization and Link-Time Optimization (`-flto=auto`).
-3. **Turnkey Argon ONE UP CM5 Laptop Support** with native battery fuel-gauge monitoring (`BAT0`/`AC0`), display backlight brightness control, lid switch power management, and smart thermal cooling curves.
-4. **Full Raspberry Pi 5 Hardware Acceleration** with VideoCore VII GPU drivers (Mesa OpenGL & Vulkan) and official Raspberry Pi 64-bit kernel integration (`linux-image-rpi-2712`).
+3. **Full Raspberry Pi 5 Hardware Acceleration** with VideoCore VII GPU drivers (Mesa OpenGL & Vulkan) and official Raspberry Pi 64-bit kernel integration (`linux-image-rpi-2712`).
+4. **Out-of-the-Box PCIe Gen3 NVMe & High-Throughput I/O** pre-configured for lightning-fast desktop responsiveness.
 
 ---
 
@@ -39,11 +39,7 @@ The official Linux Mint distribution is beloved for its elegance, stability, and
   -march=armv8.2-a+crypto+fp16+dotprod -mtune=cortex-a76 -ftree-vectorize -flto=auto
   ```
 * **🗄️ Resilient Btrfs Root Filesystem:** Transparent `zstd:2` compression saves up to 40% disk space, doubles NVMe/SD random read throughput, and significantly extends flash storage endurance.
-* **💻 Argon ONE UP Laptop Ready:** Pre-configured drivers for the Argon ONE UP CM5 laptop chassis:
-  * Battery monitoring via `oneUpPower` DKMS (`BAT0`, `AC0`).
-  * Hardware DDC/CI display brightness control (`ddcutil`).
-  * Lid switch suspend/resume integration (`/proc/device-tree/lid_switch`).
-  * EEPROM 5.0A PSU current negotiation (`PSU_MAX_CURRENT=5000`).
+* **🚀 High-Throughput PCIe Gen3 NVMe & Fast Boot:** Pre-configured PCIe Gen3 transfer modes (`pciex1_gen=3`), optimized NVMe/SD I/O schedulers, and rapid system boot.
 * **🎨 OEM Minimal Dark Boot Splash:** Resolution-independent Plymouth bootscreen (`quiet splash`) with custom mint-raspberry emblem and boot spinner.
 * **🌐 Modern Networking & I/O Tuning:** Google TCP BBR congestion control, 4-core Receive Packet Steering (RPS), irqbalance GICv2 Level-IRQ core spreading, and NVMe PCIe Gen3 profiles.
 * **📦 Automated GitHub Actions Pipeline:** Weekly automated builds check upstream Debian and Linux Mint repositories, build delta packages, sign the repository with GPG, and deploy to GitHub Pages.
@@ -129,8 +125,7 @@ Pin-Priority: 700
 | Device | Status | Notes |
 | :--- | :---: | :--- |
 | **Raspberry Pi 5 (4GB / 8GB / 16GB)** | ✅ Full Support | VideoCore VII OpenGL 3.1 / Vulkan 1.3, PCIe Gen3 NVMe, 4K60 dual HDMI. |
-| **Raspberry Pi Compute Module 5 (CM5)** | ✅ Full Support | Tested on official CM5 IO board and custom laptop chassis. |
-| **Argon ONE UP CM5 Laptop** | ✅ Full Support | Integrated battery fuel-gauge (`BAT0`/`AC0`), DDC/CI brightness control, lid switch, cooling fan policy. |
+| **Raspberry Pi Compute Module 5 (CM5)** | ✅ Full Support | Tested on CM5 IO boards with full PCIe, GPIO, and display connectivity. |
 | **Raspberry Pi 4 / 400** | ⚠️ Bootable (Generic) | Can run with generic ARM64 packages, but Cortex-A76 `-O3` binaries will cause illegal instruction exceptions. Use Pi 5 / CM5 for optimal results. |
 
 ---
@@ -140,7 +135,7 @@ Pin-Priority: 700
 The entire operating system image and package repository are 100% open source and reproducible:
 
 * **Repository Builder (`build-repo.sh`):** Fetches upstream Debian/Mint source packages, applies architecture patches, verifies GPG signatures, builds packages with Cortex-A76 flags, strips debug bloat, and updates the signed APT index.
-* **OS Image Generator (`pi-gen`):** Custom pi-gen pipeline (`stage3-lmpe`) configuring Btrfs subvolumes, network stack optimizations, Argon ONE UP laptop modules, and default Cinnamon desktop profiles.
+* **OS Image Generator (`pi-gen`):** Custom pi-gen pipeline (`stage3-lmpe`) configuring Btrfs subvolumes, network stack optimizations, hardware runtime tuning, and default Cinnamon desktop profiles.
 * **Weekly CI (`.github/workflows/build.yml`):** Automatically polls upstream changes every Monday at 03:00 UTC and performs delta builds to keep packages up-to-date.
 
 ---
