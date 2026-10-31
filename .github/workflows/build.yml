@@ -61,6 +61,7 @@ jobs:
 
       - name: Configure Raspberry Pi, LMDE 7 (gigi) & Debian Trixie APT sources
         run: |
+          rm -f /etc/apt/sources.list.d/debian.sources
           cat << 'EOF' > /etc/apt/sources.list.d/lmde.list
           deb [trusted=yes] http://archive.raspberrypi.com/debian trixie main
           deb-src [trusted=yes] http://archive.raspberrypi.com/debian trixie main
@@ -77,8 +78,12 @@ jobs:
           EOF
           cat << 'EOF' > /etc/apt/preferences.d/rpi-build.pref
           Package: *
+          Pin: origin ""
+          Pin-Priority: 995
+
+          Package: *
           Pin: origin "archive.raspberrypi.com"
-          Pin-Priority: 1000
+          Pin-Priority: 990
           EOF
           apt-get update
 

@@ -2,6 +2,7 @@
 set -euo pipefail
 
 export DEBIAN_FRONTEND=noninteractive
+export FORCE_UNSAFE_CONFIGURE=1
 export DEB_BUILD_OPTIONS="nocheck parallel=$(nproc)"
 export DEB_BUILD_PROFILES="nocheck"
 
@@ -48,11 +49,120 @@ for check_dev in "$REPO_DIR"/pool/main/zlib1g-dev_*.deb "$REPO_DIR"/pool/main/li
   rm -rf "$tmp_chk"
 done
 
+# Lokales APT-Repository aktualisieren, damit apt-get build-dep alle bereits gebauten +pi5 Pakete sauber auflöst
+update_local_apt_repo() {
+  (
+    cd "$REPO_DIR"
+    if compgen -G "pool/main/*.deb" > /dev/null; then
+      for t64_base in libcinnamon-desktop4 libcvc0 libmuffin0; do
+        for deb_file in pool/main/${t64_base}_*.deb; do
+          [[ -f "$deb_file" ]] || continue
+          if ! dpkg-deb -f "$deb_file" Provides 2>/dev/null | grep -q "${t64_base}t64"; then
+            deb_ver="$(dpkg-deb -f "$deb_file" Version)"
+            tmp_deb_dir="$(mktemp -d)"
+            dpkg-deb -R "$deb_file" "$tmp_deb_dir"
+            sed -i "/^Provides:/d; /^Replaces:/d; /^Conflicts:/d" "$tmp_deb_dir/DEBIAN/control"
+            cat << EOF >> "$tmp_deb_dir/DEBIAN/control"
+Provides: ${t64_base}t64 (= ${deb_ver})
+Replaces: ${t64_base}t64
+Conflicts: ${t64_base}t64
+EOF
+            dpkg-deb -b "$tmp_deb_dir" "$deb_file" >/dev/null
+            rm -rf "$tmp_deb_dir"
+          fi
+        done
+      done
+      dpkg-scanpackages --arch arm64 pool/ > dists/gigi/main/binary-arm64/Packages 2>/dev/null || true
+      gzip -9c dists/gigi/main/binary-arm64/Packages > dists/gigi/main/binary-arm64/Packages.gz 2>/dev/null || true
+    fi
+  )
+  echo "deb [trusted=yes] file:${REPO_DIR} gigi main" > /etc/apt/sources.list.d/lmpe-local.list
+  apt-get update -o Dir::Etc::sourcelist="sources.list.d/lmpe-local.list" \
+                 -o Dir::Etc::sourceparts="-" \
+                 -o APT::Get::List-Cleanup="0" >/dev/null 2>&1 || apt-get update >/dev/null 2>&1 || true
+}
+
+# Zu Beginn sofort den Index aus allen vorhandenen .deb-Dateien in pool/main synchronisieren
+update_local_apt_repo
+
 TOTAL="$(grep -vE '^\s*(#|$)' "$ROOT_DIR/packages.txt" | wc -l | xargs)"
 CURRENT=0
 BUILD_FAILED=0
-PENDING_DELTA_DEBS=()
 ALLOWED_SOURCES=()
+FINALIZED=0
+
+finalize_and_sign_repo() {
+  [[ "$FINALIZED" -eq 1 ]] && return 0
+  FINALIZED=1
+  set +e
+
+  # Automatischer Orphan-Cleaner: Lösche verwaiste .deb-Pakete in pool/main, deren Quellpaket aus packages.txt entfernt wurde
+  if [[ "$TIME_LIMIT_REACHED" -eq 0 && "$CURRENT" -ge "$TOTAL" && ${#ALLOWED_SOURCES[@]} -gt 0 ]]; then
+    declare -A ALLOWED_MAP=()
+    for s in "${ALLOWED_SOURCES[@]}"; do
+      ALLOWED_MAP["$s"]=1
+    done
+    for deb in "$REPO_DIR"/pool/main/*.deb; do
+      [[ -e "$deb" ]] || continue
+      deb_src="$(dpkg-deb -f "$deb" Source 2>/dev/null | awk '{print $1}' || true)"
+      deb_pkg="$(dpkg-deb -f "$deb" Package 2>/dev/null || true)"
+      [[ -z "$deb_src" ]] && deb_src="$deb_pkg"
+      if [[ -z "${ALLOWED_MAP[$deb_src]:-}" && -z "${ALLOWED_MAP[$deb_pkg]:-}" ]]; then
+        echo "🧹 Orphan-Cleaner: Entferne verwaistes Paket $(basename "$deb") (Quellpaket: $deb_src nicht mehr in packages.txt)"
+        rm -f "$deb"
+      fi
+    done
+  fi
+
+  cd "$REPO_DIR"
+  if compgen -G "pool/main/*.deb" > /dev/null; then
+    update_local_apt_repo
+
+    echo "[$(date -u '+%H:%M:%S')] 📦 Generiere APT-Repository-Index und GPG-Signaturen..."
+    apt-ftparchive \
+      -o APT::FTPArchive::Release::Origin="LMPE" \
+      -o APT::FTPArchive::Release::Label="LMPE" \
+      -o APT::FTPArchive::Release::Suite="gigi" \
+      -o APT::FTPArchive::Release::Codename="gigi" \
+      -o APT::FTPArchive::Release::Architectures="arm64" \
+      -o APT::FTPArchive::Release::Components="main" \
+      release dists/gigi > dists/gigi/Release
+
+    if [[ -n "${GPG_PRIVATE_KEY:-}" ]]; then
+      export GNUPGHOME="$(mktemp -d)"
+      chmod 700 "$GNUPGHOME"
+      echo "$GPG_PRIVATE_KEY" | gpg --batch --yes --import 2>/dev/null
+
+      rm -f dists/gigi/InRelease dists/gigi/Release.gpg lmde-arm64.gpg
+      gpg --batch --yes --digest-algo SHA512 --clearsign -o dists/gigi/InRelease dists/gigi/Release
+      gpg --batch --yes --digest-algo SHA512 -abs -o dists/gigi/Release.gpg dists/gigi/Release
+      gpg --batch --yes --export > lmde-arm64.gpg
+
+      rm -rf "$GNUPGHOME"
+    fi
+    REPO_SIZE_MB="$(du -sm pool/main | awk '{print $1}')"
+    echo "[$(date -u '+%H:%M:%S')] 🔐 APT-Repository erfolgreich signiert (Aktuelle Pool-Größe: ${REPO_SIZE_MB} MB / 1000 MB GitHub-Pages-Limit)."
+  else
+    echo "[$(date -u '+%H:%M:%S')] ⚠️ Keine .deb-Pakete in pool/main vorhanden – überspringe Signierung."
+  fi
+
+  cd "$ROOT_DIR"
+  if [[ -n "${GITHUB_ENV:-}" ]]; then
+    echo "BUILD_FAILED=${BUILD_FAILED}" >> "$GITHUB_ENV"
+    echo "TIME_LIMIT_REACHED=${TIME_LIMIT_REACHED}" >> "$GITHUB_ENV"
+  fi
+
+  if [[ "$BUILD_FAILED" -eq 1 ]]; then
+    touch "$ROOT_DIR/.build_failed"
+    echo "[$(date -u '+%H:%M:%S')] ⚠️ Lauf mit Fehlern beendet (BUILD_FAILED=1). Bisher gebaute Pakete werden als Partial-Deploy gesichert."
+  elif [[ "$TIME_LIMIT_REACHED" -eq 1 ]]; then
+    echo "[$(date -u '+%H:%M:%S')] ⏳ Zeitbudget erreicht – bisher gebaute Pakete werden veröffentlicht und Folge-Lauf wird gestartet."
+  else
+    echo "[$(date -u '+%H:%M:%S')] 🎉 Alle $TOTAL Pakete erfolgreich verarbeitet!"
+  fi
+}
+
+trap finalize_and_sign_repo EXIT
 
 {
   echo "## 🛠️ LMPE ARM64 (Cortex-A76) Build-Dashboard"
@@ -66,9 +176,11 @@ run_dpkg_build_with_heartbeat() {
   local cur_idx="$2"
   local tot_idx="$3"
   local log_f="$4"
+  local build_flag="${5:--b}"
   local rc=0
 
-  dpkg-buildpackage -b -uc -us -j"$(nproc)" < /dev/null >> "$log_f" 2>&1 &
+  # GITHUB_ACTIONS und CI im Build-Subprozess entfernen, damit Upstream-Buildskripte (wie re2 setup.py) kein Bazel-CI erzwingen
+  env -u GITHUB_ACTIONS -u CI dpkg-buildpackage "$build_flag" -uc -us -j"$(nproc)" < /dev/null >> "$log_f" 2>&1 &
   local b_pid=$!
 
   (
@@ -118,7 +230,14 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
   # Große Pakete mit eigenem Assembler-/Rust-/Symbol-Versioning direkt ohne erzwungenes LTO im Linker bauen
   USE_LTO=1
   case "$pkg" in
-    gmp|libxcrypt|libgcrypt20|nettle|gnutls28|openssl|jemalloc|highway|icu|glib2.0|mesa|xorg-server|xwayland|librsvg|poppler|aom|svt-av1|jpeg-xl|libplacebo|alsa-lib|pulseaudio|pipewire|wireplumber|gstreamer1.0|gst-plugins-base1.0|gst-plugins-good1.0|gst-plugins-bad1.0|gst-plugins-ugly1.0|gst-libav1.0|ffmpeg|mpv|vlc|gtk+3.0|gtk4|mozjs128|python3.13|btop|imagemagick|ghostscript|gimp|inkscape|audacity)
+    libgcrypt20)
+      USE_LTO=0
+      # libgcrypt20 ersetzt in random/Makefile per sed das erste -O2 durch -O0 für jitterentropy; kein zweites -O3 anhängen
+      export DEB_CFLAGS_MAINT_APPEND="$ARCH_FLAGS"
+      export DEB_CXXFLAGS_MAINT_APPEND="$ARCH_FLAGS"
+      export DEB_LDFLAGS_MAINT_APPEND=""
+      ;;
+    xz-utils|tar|re2|gmp|libxcrypt|nettle|gnutls28|openssl|jemalloc|highway|icu|glib2.0|mesa|xorg-server|xwayland|librsvg|poppler|aom|svt-av1|jpeg-xl|libplacebo|alsa-lib|pulseaudio|pipewire|wireplumber|gstreamer1.0|gst-plugins-base1.0|gst-plugins-good1.0|gst-plugins-bad1.0|gst-plugins-ugly1.0|gst-libav1.0|ffmpeg|mpv|vlc|gtk+3.0|gtk4|mozjs128|python3.13|btop|imagemagick|ghostscript|gimp|inkscape|audacity)
       USE_LTO=0
       export DEB_CFLAGS_MAINT_APPEND="$ARCH_FLAGS $OPT_LEVEL"
       export DEB_CXXFLAGS_MAINT_APPEND="$ARCH_FLAGS $OPT_LEVEL"
@@ -214,9 +333,8 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
     fi
   fi
 
-  # 4. Delta-Build-Treffer: Kompilieren überspringen (.deb-Pakete vormerken, falls ein Folgepaket neu gebaut werden muss)
+  # 4. Delta-Build-Treffer: Kompilieren überspringen (Pakete sind bereits über lmpe-local.list für apt-get build-dep verfügbar)
   if [[ "$DELTA_HIT" -eq 1 ]]; then
-    PENDING_DELTA_DEBS+=("${EXISTING_DEBS[@]}")
     DURATION=$(( $(date +%s) - PKG_START_TIME ))
     echo "[$(date -u '+%H:%M:%S')] ⏭️ [$CURRENT/$TOTAL] $pkg übersprungen (bereits aktuell im Repo)"
     echo "| $CURRENT/$TOTAL | \`$pkg\` | \`$TARGET_VER\` | \`$OPT_LEVEL\` | ⏭️ Delta-Skip | ${DURATION}s |" >> "$SUMMARY_FILE"
@@ -231,11 +349,6 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
     break
   fi
 
-  # 5. Neubau nötig (zuvor übersprungene .deb-Abhängigkeiten bei Bedarf jetzt installieren)
-  if [[ ${#PENDING_DELTA_DEBS[@]} -gt 0 ]]; then
-    dpkg -i "${PENDING_DELTA_DEBS[@]}" < /dev/null >> "$LOG_FILE" 2>&1 || apt-get install -f -y < /dev/null >> "$LOG_FILE" 2>&1
-    PENDING_DELTA_DEBS=()
-  fi
   echo "[$(date -u '+%H:%M:%S')] 🚀 [$CURRENT/$TOTAL] Starte $pkg ($UPSTREAM_VER) [Flags: $OPT_LEVEL]..."
 
   # Alte .deb-Dateien dieses Quellpakets aus ./repo/pool/main/ löschen
@@ -288,9 +401,15 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
   if [[ "$STEP_OK" -eq 1 ]]; then
     cd "$SRC_DIR"
 
-    # Falls <pkg> == mint-info-gigi: Patche debian/control
+    # Paket-spezifische Upstream-/Debian-Rules-Quirks beheben
     if [[ "$pkg" == "mint-info-gigi" ]]; then
       sed -i 's/^Architecture:.*amd64.*/Architecture: arm64/' debian/control
+    elif [[ "$pkg" == "xz-utils" ]]; then
+      sed -i 's/findstring nocheck/findstring nodoc/g' debian/rules || true
+    elif [[ "$pkg" == "libgcrypt20" ]]; then
+      sed -i 's|-O0 /|-O0 /g|g' random/Makefile.am random/Makefile.in 2>/dev/null || true
+    elif [[ "$pkg" == "re2" ]]; then
+      sed -i "s|export DEB_CXXFLAGS_MAINT_APPEND=.*|export DEB_CXXFLAGS_MAINT_APPEND=-pthread -Wall -std=c++14 ${ARCH_FLAGS} ${OPT_LEVEL}|" debian/rules || true
     fi
 
     # Lokales Versions-Suffix +pi5 an den Changelog anhängen
@@ -302,30 +421,36 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
   fi
 
   if [[ "$STEP_OK" -eq 1 ]]; then
-    if ! (apt-get build-dep -y ./ < /dev/null >> "$LOG_FILE" 2>&1 || apt-get build-dep -y -t trixie-backports ./ < /dev/null >> "$LOG_FILE" 2>&1); then
+    if ! (apt-get build-dep -y --allow-downgrades ./ < /dev/null >> "$LOG_FILE" 2>&1 || apt-get build-dep -y --allow-downgrades -t trixie-backports ./ < /dev/null >> "$LOG_FILE" 2>&1); then
       STEP_OK=0
     fi
   fi
 
-  # Paket kompilieren mit 60-Sekunden-Heartbeat (und automatischem Non-LTO-Fallback bei LTO-Linker-Fehlern)
+  # Paket kompilieren mit 60-Sekunden-Heartbeat (inkl. automatischem Non-LTO- und Binary-Arch-Fallback)
   if [[ "$STEP_OK" -eq 1 ]]; then
-    if ! run_dpkg_build_with_heartbeat "$pkg" "$CURRENT" "$TOTAL" "$LOG_FILE"; then
+    BUILD_MODE="-b"
+    [[ "$pkg" == "xz-utils" ]] && BUILD_MODE="-B"
+    if ! run_dpkg_build_with_heartbeat "$pkg" "$CURRENT" "$TOTAL" "$LOG_FILE" "$BUILD_MODE"; then
       if [[ "$USE_LTO" -eq 1 ]]; then
         echo "   🔄 [$CURRENT/$TOTAL] LTO-Build für $pkg fehlgeschlagen – wiederhole automatisch ohne LTO (mit $ARCH_FLAGS $OPT_LEVEL)..."
         export DEB_CFLAGS_MAINT_APPEND="$ARCH_FLAGS $OPT_LEVEL"
         export DEB_CXXFLAGS_MAINT_APPEND="$ARCH_FLAGS $OPT_LEVEL"
         export DEB_LDFLAGS_MAINT_APPEND=""
         debian/rules clean < /dev/null >> "$LOG_FILE" 2>&1 || true
-        if ! run_dpkg_build_with_heartbeat "$pkg" "$CURRENT" "$TOTAL" "$LOG_FILE"; then
+        if ! run_dpkg_build_with_heartbeat "$pkg" "$CURRENT" "$TOTAL" "$LOG_FILE" "$BUILD_MODE"; then
           STEP_OK=0
         fi
       else
-        STEP_OK=0
+        echo "   🔄 [$CURRENT/$TOTAL] Build (-b) für $pkg fehlgeschlagen – wiederhole automatisch als Binary-Arch-Only (-B)..."
+        debian/rules clean < /dev/null >> "$LOG_FILE" 2>&1 || true
+        if ! run_dpkg_build_with_heartbeat "$pkg" "$CURRENT" "$TOTAL" "$LOG_FILE" "-B"; then
+          STEP_OK=0
+        fi
       fi
     fi
   fi
 
-  # Debug-, Doku-, Test- und Cross-Compile-Ballast löschen, .deb-Pakete installieren und in den Pool verschieben
+  # Debug-, Doku-, Test- und Cross-Compile-Ballast löschen, .deb-Pakete direkt in den Pool verschieben und lokalen APT-Index aktualisieren
   if [[ "$STEP_OK" -eq 1 ]]; then
     rm -f ../*dbgsym*.deb \
           ../*-dbg_*.deb \
@@ -336,10 +461,11 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
           ../*-tests_*.deb \
           ../*-source_*.deb \
           ../*-mingw-*.deb
-    if ! (dpkg -i ../*.deb < /dev/null >> "$LOG_FILE" 2>&1 || apt-get install -f -y < /dev/null >> "$LOG_FILE" 2>&1); then
-      STEP_OK=0
-    else
+    if compgen -G "../*.deb" > /dev/null; then
       mv -f ../*.deb "$REPO_DIR/pool/main/"
+      update_local_apt_repo
+    else
+      STEP_OK=0
     fi
   fi
 
@@ -362,89 +488,3 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
   echo "| $CURRENT/$TOTAL | \`$pkg\` | \`$TARGET_VER\` | \`$OPT_LEVEL\` | ✅ Gebaut | ${DURATION}s |" >> "$SUMMARY_FILE"
 
 done 3< "$ROOT_DIR/packages.txt"
-
-# Automatischer Orphan-Cleaner: Lösche verwaiste .deb-Pakete in pool/main, deren Quellpaket aus packages.txt entfernt wurde
-if [[ "$TIME_LIMIT_REACHED" -eq 0 && ${#ALLOWED_SOURCES[@]} -gt 0 ]]; then
-  declare -A ALLOWED_MAP=()
-  for s in "${ALLOWED_SOURCES[@]}"; do
-    ALLOWED_MAP["$s"]=1
-  done
-  for deb in "$REPO_DIR"/pool/main/*.deb; do
-    [[ -e "$deb" ]] || continue
-    deb_src="$(dpkg-deb -f "$deb" Source 2>/dev/null | awk '{print $1}' || true)"
-    deb_pkg="$(dpkg-deb -f "$deb" Package 2>/dev/null || true)"
-    [[ -z "$deb_src" ]] && deb_src="$deb_pkg"
-    if [[ -z "${ALLOWED_MAP[$deb_src]:-}" && -z "${ALLOWED_MAP[$deb_pkg]:-}" ]]; then
-      echo "🧹 Orphan-Cleaner: Entferne verwaistes Paket $(basename "$deb") (Quellpaket: $deb_src nicht mehr in packages.txt)"
-      rm -f "$deb"
-    fi
-  done
-fi
-
-# Repository-Metadaten generieren und signieren (auch bei Teil-Erfolg / BUILD_FAILED=1 oder TIME_LIMIT_REACHED=1!)
-cd "$REPO_DIR"
-
-if compgen -G "pool/main/*.deb" > /dev/null; then
-  # Debian Trixie t64-Kompatibilität für LMDE-Bibliotheken sicherstellen
-  for t64_base in libcinnamon-desktop4 libcvc0 libmuffin0; do
-    for deb_file in pool/main/${t64_base}_*.deb; do
-      [[ -f "$deb_file" ]] || continue
-      if ! dpkg-deb -f "$deb_file" Provides 2>/dev/null | grep -q "${t64_base}t64"; then
-        deb_ver="$(dpkg-deb -f "$deb_file" Version)"
-        tmp_deb_dir="$(mktemp -d)"
-        dpkg-deb -R "$deb_file" "$tmp_deb_dir"
-        sed -i "/^Provides:/d; /^Replaces:/d; /^Conflicts:/d" "$tmp_deb_dir/DEBIAN/control"
-        cat << EOF >> "$tmp_deb_dir/DEBIAN/control"
-Provides: ${t64_base}t64 (= ${deb_ver})
-Replaces: ${t64_base}t64
-Conflicts: ${t64_base}t64
-EOF
-        dpkg-deb -b "$tmp_deb_dir" "$deb_file" >/dev/null
-        rm -rf "$tmp_deb_dir"
-      fi
-    done
-  done
-
-  echo "[$(date -u '+%H:%M:%S')] 📦 Generiere APT-Repository-Index und GPG-Signaturen..."
-  dpkg-scanpackages --arch arm64 pool/ > dists/gigi/main/binary-arm64/Packages 2>/dev/null
-  gzip -9c dists/gigi/main/binary-arm64/Packages > dists/gigi/main/binary-arm64/Packages.gz
-
-  apt-ftparchive \
-    -o APT::FTPArchive::Release::Origin="LMPE" \
-    -o APT::FTPArchive::Release::Label="LMPE" \
-    -o APT::FTPArchive::Release::Suite="gigi" \
-    -o APT::FTPArchive::Release::Codename="gigi" \
-    -o APT::FTPArchive::Release::Architectures="arm64" \
-    -o APT::FTPArchive::Release::Components="main" \
-    release dists/gigi > dists/gigi/Release
-
-  export GNUPGHOME="$(mktemp -d)"
-  chmod 700 "$GNUPGHOME"
-  echo "$GPG_PRIVATE_KEY" | gpg --batch --yes --import 2>/dev/null
-
-  rm -f dists/gigi/InRelease dists/gigi/Release.gpg lmde-arm64.gpg
-  gpg --batch --yes --digest-algo SHA512 --clearsign -o dists/gigi/InRelease dists/gigi/Release
-  gpg --batch --yes --digest-algo SHA512 -abs -o dists/gigi/Release.gpg dists/gigi/Release
-  gpg --batch --yes --export > lmde-arm64.gpg
-
-  rm -rf "$GNUPGHOME"
-  REPO_SIZE_MB="$(du -sm pool/main | awk '{print $1}')"
-  echo "[$(date -u '+%H:%M:%S')] 🔐 APT-Repository erfolgreich signiert (Aktuelle Pool-Größe: ${REPO_SIZE_MB} MB / 1000 MB GitHub-Pages-Limit)."
-else
-  echo "[$(date -u '+%H:%M:%S')] ⚠️ Keine .deb-Pakete in pool/main vorhanden – überspringe Signierung."
-fi
-
-cd "$ROOT_DIR"
-if [[ -n "${GITHUB_ENV:-}" ]]; then
-  echo "BUILD_FAILED=${BUILD_FAILED}" >> "$GITHUB_ENV"
-  echo "TIME_LIMIT_REACHED=${TIME_LIMIT_REACHED}" >> "$GITHUB_ENV"
-fi
-
-if [[ "$BUILD_FAILED" -eq 1 ]]; then
-  touch "$ROOT_DIR/.build_failed"
-  echo "[$(date -u '+%H:%M:%S')] ⚠️ Lauf mit Fehlern beendet (BUILD_FAILED=1). Bisher gebaute Pakete werden als Partial-Deploy gesichert."
-elif [[ "$TIME_LIMIT_REACHED" -eq 1 ]]; then
-  echo "[$(date -u '+%H:%M:%S')] ⏳ Zeitbudget erreicht – bisher gebaute Pakete werden veröffentlicht und Folge-Lauf wird gestartet."
-else
-  echo "[$(date -u '+%H:%M:%S')] 🎉 Alle $TOTAL Pakete erfolgreich verarbeitet!"
-fi
