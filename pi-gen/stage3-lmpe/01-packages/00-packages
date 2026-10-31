@@ -31,6 +31,8 @@ xreader
 pix
 xdg-desktop-portal-xapp
 xserver-xorg
+xwayland
+whiptail
 gldriver-test
 pkexec
 gnome-terminal

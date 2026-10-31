@@ -18,8 +18,6 @@ rpi-swap rpi-loop-utils
 raspberrypi-sys-mods
 apt-listchanges
 usb-modeswitch
-libpam-chksshpwd
-rpi-update
 libmtp-runtime
 rsync
 htop
@@ -36,8 +34,5 @@ file
 kms++-utils
 python3-venv
 bluez bluez-firmware
-rpi-keyboard-config
-rpi-keyboard-fw-update
-rpi-usb-gadget modemmanager-
-rpi-connect-lite
+modemmanager-
 rpifwcrypto
