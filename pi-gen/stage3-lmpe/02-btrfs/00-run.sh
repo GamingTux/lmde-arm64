@@ -1,10 +1,11 @@
 #!/bin/bash -e
 
-# 1. /etc/fstab auf Btrfs-Root (ohne separates Home, ohne Snapshots) mit Hochleistungs-Optionen setzen
+# 1. /etc/fstab auf Btrfs-Root (ohne separates Home, ohne Snapshots) mit Hochleistungs-Optionen + /tmp im RAM setzen
 cat << 'EOF' > "${ROOTFS_DIR}/etc/fstab"
 proc            /proc           proc    defaults          0       0
 BOOTDEV  /boot/firmware  vfat    defaults          0       2
 ROOTDEV  /               btrfs   defaults,compress=zstd:2,noatime,nodiratime,ssd,discard=async 0 0
+tmpfs           /tmp            tmpfs   defaults,noatime,nosuid,nodev,mode=1777 0 0
 EOF
 
 # 2. Kernel-Kommandozeile (/boot/firmware/cmdline.txt) auf rootfstype=btrfs umstellen
