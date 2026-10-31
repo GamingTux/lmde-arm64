@@ -1,0 +1,75 @@
+name: Build LMDE 7 (gigi) ARM64 Pi5 Repo
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * 1'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    container:
+      image: debian:trixie
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential \
+            devscripts \
+            equivs \
+            apt-utils \
+            wget \
+            curl \
+            gnupg \
+            ca-certificates \
+            git \
+            xz-utils
+
+      - name: Configure LMDE 7 (gigi) & Debian Trixie APT sources
+        run: |
+          cat << 'EOF' > /etc/apt/sources.list.d/lmde.list
+          deb-src [trusted=yes] http://packages.linuxmint.com gigi main upstream import backport
+          deb [arch=amd64 trusted=yes] http://packages.linuxmint.com gigi main upstream import backport
+          deb-src http://deb.debian.org/debian trixie main contrib non-free non-free-firmware
+          EOF
+          apt-get update
+
+      - name: Fetch existing gh-pages repository for delta builds
+        run: |
+          if git clone --depth 1 --branch gh-pages "https://github.com/${GITHUB_REPOSITORY}.git" ./repo; then
+            rm -rf ./repo/.git
+          else
+            mkdir -p ./repo
+          fi
+
+      - name: Build and sign packages
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          chmod +x ./build-repo.sh
+          ./build-repo.sh
+
+      - name: Deploy APT repository to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./repo
+          force_orphan: true
+
+      - name: 60-Day Keep-Alive Commit
+        run: |
+          git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          date -u > .last_sync
+          git add .last_sync
+          git commit -m "chore: update .last_sync keep-alive" || true
+          git push origin HEAD:main
