@@ -224,6 +224,7 @@ on_chroot <<- \EOF
 		depmod -a "$KVER"
 	done
 	plymouth-set-default-theme lmpe || true
+	flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo || true
 	glib-compile-schemas /usr/share/glib-2.0/schemas || true
 	apt-get remove -y xserver-xorg-video-fbdev || true
 	systemctl enable glamor-test.service rp1-test.service lightdm argon-backlight.service argon-eeprom-psu.service irqbalance.service systemd-resolved.service fstrim.timer bluetooth.service || true

@@ -61,3 +61,5 @@ irqbalance
 systemd-resolved
 plymouth
 plymouth-themes
+flatpak
+gir1.2-flatpak-1.0

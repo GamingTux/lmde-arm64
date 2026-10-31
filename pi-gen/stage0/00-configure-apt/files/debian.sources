@@ -1,6 +1,6 @@
 Types: deb
 URIs: http://deb.debian.org/debian/
-Suites: RELEASE RELEASE-updates
+Suites: RELEASE RELEASE-updates RELEASE-backports
 Components: main contrib non-free non-free-firmware
 Signed-By: /usr/share/keyrings/debian-archive-keyring.pgp
 
