@@ -17,6 +17,7 @@ cinnamon-screensaver
 cinnamon-session
 cinnamon
 xdg-desktop-portal-xapp
+xreader
 nemo
 nemo-fileroller
 nemo-preview
@@ -29,7 +30,6 @@ nemo-media-columns
 xed
 xviewer
 xviewer-plugins
-xreader
 pix
 slick-greeter
 mint-info-gigi

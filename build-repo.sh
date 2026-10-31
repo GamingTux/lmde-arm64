@@ -14,7 +14,7 @@ PACKAGES_FILE="$REPO_DIR/dists/gigi/main/binary-arm64/Packages"
 
 mkdir -p "$REPO_DIR/pool/main" "$REPO_DIR/dists/gigi/main/binary-arm64"
 
-while IFS= read -r line || [[ -n "$line" ]]; do
+while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
   # Kommentare und Leerzeilen ignorieren
   line="${line%%#*}"
   pkg="$(echo "$line" | xargs)"
@@ -36,13 +36,24 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   export DEB_CFLAGS_MAINT_APPEND="$BASE_FLAGS $OPT_LEVEL"
   export DEB_CXXFLAGS_MAINT_APPEND="$BASE_FLAGS $OPT_LEVEL"
 
-  # 2. Upstream-Quellversion und Quellpaket-Name ermitteln
-  UPSTREAM_VER="$(apt-cache showsrc "$pkg" | awk '/^Version:/ {print $2; exit}')"
-  SRC_NAME="$(apt-cache showsrc "$pkg" | awk '/^Package:/ {print $2; exit}')"
-  [[ -z "$SRC_NAME" ]] && SRC_NAME="$pkg"
+  # 2. Upstream-Quellversion und Quellpaket-Name ermitteln (höchste verfügbare Version wählen)
+  QUERY_PKG="$pkg"
+  if [[ -z "$(apt-cache showsrc "$QUERY_PKG" 2>/dev/null | awk '/^Version:/ {print $2; exit}')" && "$pkg" == "mint-info-gigi" ]]; then
+    QUERY_PKG="mint-info"
+  fi
+
+  UPSTREAM_VER=""
+  for v in $(apt-cache showsrc "$QUERY_PKG" | awk '/^Version:/ {print $2}'); do
+    if [[ -z "$UPSTREAM_VER" ]] || dpkg --compare-versions "$v" gt "$UPSTREAM_VER"; then
+      UPSTREAM_VER="$v"
+    fi
+  done
+
+  SRC_NAME="$(apt-cache showsrc "$QUERY_PKG" | awk '/^Package:/ {print $2; exit}')"
+  [[ -z "$SRC_NAME" ]] && SRC_NAME="$QUERY_PKG"
 
   if [[ -z "$UPSTREAM_VER" ]]; then
-    echo "FEHLER: Konnte Upstream-Version für $pkg nicht ermitteln!" >&2
+    echo "FEHLER: Konnte Upstream-Version für $pkg ($QUERY_PKG) nicht ermitteln!" >&2
     exit 1
   fi
 
@@ -53,7 +64,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   DELTA_HIT=0
   EXISTING_DEBS=()
   if [[ -s "$PACKAGES_FILE" ]]; then
-    if awk -v pkg="$pkg" -v src="$SRC_NAME" -v ver="$TARGET_VER" '
+    if awk -v pkg="$pkg" -v qpkg="$QUERY_PKG" -v src="$SRC_NAME" -v ver="$TARGET_VER" '
       BEGIN { RS=""; FS="\n"; found=0 }
       {
         p=""; s=""; v=""
@@ -63,7 +74,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
           else if ($i ~ /^Version: /) { v = substr($i, 10) }
         }
         if (s == "") s = p
-        if ((s == pkg || s == src || p == pkg) && (v == ver || v == ver "1")) {
+        if ((s == pkg || s == qpkg || s == src || p == pkg || p == qpkg) && (v == ver || v == ver "1")) {
           found = 1
           exit 0
         }
@@ -72,7 +83,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
     ' "$PACKAGES_FILE"; then
       while IFS= read -r rel_deb; do
         [[ -n "$rel_deb" && -f "$REPO_DIR/$rel_deb" ]] && EXISTING_DEBS+=("$REPO_DIR/$rel_deb")
-      done < <(awk -v pkg="$pkg" -v src="$SRC_NAME" '
+      done < <(awk -v pkg="$pkg" -v qpkg="$QUERY_PKG" -v src="$SRC_NAME" '
         BEGIN { RS=""; FS="\n" }
         {
           p=""; s=""; fn=""
@@ -82,7 +93,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
             else if ($i ~ /^Filename: /) { fn = substr($i, 11) }
           }
           if (s == "") s = p
-          if ((s == pkg || s == src || p == pkg) && fn != "") {
+          if ((s == pkg || s == qpkg || s == src || p == pkg || p == qpkg) && fn != "") {
             print fn
           }
         }
@@ -108,7 +119,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   if [[ -s "$PACKAGES_FILE" ]]; then
     while IFS= read -r old_rel; do
       [[ -n "$old_rel" ]] && rm -f "$REPO_DIR/$old_rel"
-    done < <(awk -v pkg="$pkg" -v src="$SRC_NAME" '
+    done < <(awk -v pkg="$pkg" -v qpkg="$QUERY_PKG" -v src="$SRC_NAME" '
       BEGIN { RS=""; FS="\n" }
       {
         p=""; s=""; fn=""
@@ -118,7 +129,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
           else if ($i ~ /^Filename: /) { fn = substr($i, 11) }
         }
         if (s == "") s = p
-        if ((s == pkg || s == src || p == pkg) && fn != "") {
+        if ((s == pkg || s == qpkg || s == src || p == pkg || p == qpkg) && fn != "") {
           print fn
         }
       }
@@ -130,7 +141,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
     deb_src="$(dpkg-deb -f "$deb" Source 2>/dev/null | awk '{print $1}' || true)"
     deb_pkg="$(dpkg-deb -f "$deb" Package 2>/dev/null || true)"
     [[ -z "$deb_src" ]] && deb_src="$deb_pkg"
-    if [[ "$deb_src" == "$pkg" || "$deb_src" == "$SRC_NAME" || "$deb_pkg" == "$pkg" ]]; then
+    if [[ "$deb_src" == "$pkg" || "$deb_src" == "$QUERY_PKG" || "$deb_src" == "$SRC_NAME" || "$deb_pkg" == "$pkg" || "$deb_pkg" == "$QUERY_PKG" ]]; then
       rm -f "$deb"
     fi
   done
@@ -139,7 +150,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   rm -rf "/tmp/build/$pkg"
   mkdir -p "/tmp/build/$pkg"
   cd "/tmp/build/$pkg"
-  apt-get source "$pkg"
+  apt-get source "${SRC_NAME}=${UPSTREAM_VER}" || apt-get source "$QUERY_PKG"
 
   SRC_DIR="$(find "/tmp/build/$pkg" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
   if [[ -z "$SRC_DIR" ]]; then
@@ -150,31 +161,31 @@ while IFS= read -r line || [[ -n "$line" ]]; do
 
   # Falls <pkg> == mint-info-gigi: Patche debian/control
   if [[ "$pkg" == "mint-info-gigi" ]]; then
-    sed -i 's/^Architecture:.*/Architecture: arm64 all/' debian/control
+    sed -i 's/^Architecture:.*amd64.*/Architecture: arm64/' debian/control
   fi
 
-  # Lokales Versions-Suffix +pi5 an den Changelog anhängen
-  DEBEMAIL="builder@localhost" DEBFULLNAME="LMPE Builder" dch --local +pi5 --distribution gigi "Compiled for Raspberry Pi 5 Cortex-A76"
+  # Lokales Versions-Suffix +pi5 an den Changelog anhängen (--force-distribution & < /dev/null verhindert interaktiven Prompt)
+  DEBEMAIL="builder@localhost" DEBFULLNAME="LMPE Builder" dch --force-distribution --local +pi5 --distribution gigi "Compiled for Raspberry Pi 5 Cortex-A76" < /dev/null
   sed -i '1s/+pi51)/+pi5)/' debian/changelog
 
   # Build-Abhängigkeiten installieren
-  apt-get build-dep -y ./
+  apt-get build-dep -y ./ < /dev/null
 
   # Paket kompilieren
-  dpkg-buildpackage -b -uc -us -j$(nproc)
+  dpkg-buildpackage -b -uc -us -j$(nproc) < /dev/null
 
   # Debug-Pakete löschen
-  rm -f ../*dbgsym*.deb ../*.ddeb
+  rm -f ../*dbgsym*.deb ../*-dbg_*.deb ../*.ddeb
 
   # Frisch gebaute .deb-Pakete direkt im Container installieren und in den Pool verschieben
-  dpkg -i ../*.deb || apt-get install -f -y
+  dpkg -i ../*.deb < /dev/null || apt-get install -f -y < /dev/null
   mv -f ../*.deb "$REPO_DIR/pool/main/"
 
   # Build-Verzeichnis aufräumen
   cd "$ROOT_DIR"
   rm -rf "/tmp/build/$pkg"
 
-done < "$ROOT_DIR/packages.txt"
+done 3< "$ROOT_DIR/packages.txt"
 
 # Repository-Metadaten generieren und signieren
 cd "$REPO_DIR"
