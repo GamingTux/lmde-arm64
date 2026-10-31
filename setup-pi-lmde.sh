@@ -6,6 +6,17 @@ if [[ "$EUID" -ne 0 ]]; then
   exit 1
 fi
 
+# Hardware check: LMPE Cortex-A76 binaries will crash with SIGILL on older Pi models
+if [[ -f /sys/firmware/devicetree/base/model ]]; then
+  MODEL="$(tr -d '\0' < /sys/firmware/devicetree/base/model)"
+  if [[ "$MODEL" != *"Raspberry Pi 5"* && "$MODEL" != *"Compute Module 5"* && "$MODEL" != *"Raspberry Pi 500"* ]]; then
+    echo "❌ ERROR: LMPE is exclusively engineered for Raspberry Pi 5 / Compute Module 5 (Cortex-A76)." >&2
+    echo "Detected hardware: $MODEL" >&2
+    echo "Older generations (Pi 4, Pi 3, Pi Zero 2W) lack ARMv8.2-A + crypto + dotprod instructions and cannot run LMPE." >&2
+    exit 1
+  fi
+fi
+
 export DEBIAN_FRONTEND=noninteractive
 
 echo ">>> [1/6] Installing prerequisites (curl, wget, gpg, ca-certificates)..."

@@ -8,8 +8,11 @@
 [![Filesystem](https://img.shields.io/badge/RootFS-Btrfs%20%2B%20zstd%3A2-orange?style=flat-square)](https://btrfs.readthedocs.io/)
 [![License](https://img.shields.io/github/license/GamingTux/lmde-arm64?style=flat-square)](LICENSE)
 
-> **The ultimate Linux Mint experience engineered for Raspberry Pi 5 & Compute Module 5.**  
+> **The ultimate Linux Mint experience engineered exclusively for Raspberry Pi 5 & Compute Module 5.**  
 > Built upon **LMDE 7 ("gigi")** and **Debian 13 Trixie**, LMPE provides a seamless Cinnamon desktop natively compiled and aggressively optimized for the **Broadcom BCM2712 (ARM Cortex-A76)** microarchitecture.
+
+> [!IMPORTANT]
+> **Hardware Exclusivity:** LMPE is strictly engineered for the **Raspberry Pi 5**, **Compute Module 5 (CM5)**, and **Raspberry Pi 500**. It utilizes ARMv8.2-A, DotProd, FP16, and hardware cryptography instructions that are physically absent on older Raspberry Pi generations (Pi 4, Pi 3, Pi Zero 2W). Attempting to run LMPE on older boards will result in immediate `Illegal instruction` (SIGILL) crashes.
 
 ---
 
@@ -124,9 +127,10 @@ Pin-Priority: 700
 
 | Device | Status | Notes |
 | :--- | :---: | :--- |
-| **Raspberry Pi 5 (4GB / 8GB / 16GB)** | ✅ Full Support | VideoCore VII OpenGL 3.1 / Vulkan 1.3, PCIe Gen3 NVMe, 4K60 dual HDMI. |
-| **Raspberry Pi Compute Module 5 (CM5)** | ✅ Full Support | Tested on CM5 IO boards with full PCIe, GPIO, and display connectivity. |
-| **Raspberry Pi 4 / 400** | ⚠️ Bootable (Generic) | Can run with generic ARM64 packages, but Cortex-A76 `-O3` binaries will cause illegal instruction exceptions. Use Pi 5 / CM5 for optimal results. |
+| **Raspberry Pi 5 (4GB / 8GB / 16GB)** | ✅ Full Support | Broadcom BCM2712 Cortex-A76, VideoCore VII OpenGL 3.1 / Vulkan 1.3, PCIe Gen3 NVMe, 4K60 dual HDMI. |
+| **Raspberry Pi Compute Module 5 (CM5)** | ✅ Full Support | Tested on CM5 IO boards with full PCIe, GPIO, and dual display connectivity. |
+| **Raspberry Pi 500** | ✅ Full Support | Native BCM2712 architecture support. |
+| **Raspberry Pi 4 / 400 / 3 / Zero 2W** | ❌ Unsupported | **Incompatible.** Older chips (Cortex-A72 / A53) physically lack ARMv8.2-A, DotProd, and Crypto instructions, causing `Illegal instruction` crashes on boot. |
 
 ---
 
@@ -175,6 +179,11 @@ You can update your system using the standard Linux Mint Update Manager (<code>m
 ```bash
 sudo apt update && sudo apt full-upgrade
 ```
+</details>
+
+<details>
+<summary><b>Can I run LMPE on a Raspberry Pi 4, Pi 3, or Pi Zero 2W?</b></summary>
+<b>No.</b> LMPE is specifically compiled for the <b>ARMv8.2-A Cortex-A76 CPU architecture</b> found exclusively in the Raspberry Pi 5, Compute Module 5, and Pi 500. Older models (Cortex-A72 on Pi 4, Cortex-A53 on Pi 3 / Zero 2W) physically lack ARMv8.2-A, hardware cryptography, and dot product instructions. Running LMPE on older boards will cause immediate <code>Illegal instruction</code> (SIGILL) crashes.
 </details>
 
 ---
