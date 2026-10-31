@@ -28,3 +28,7 @@ xreader
 pix
 xdg-desktop-portal-xapp
 xserver-xorg
+gldriver-test
+pkexec
+gnome-terminal
+libspa-0.2-bluetooth

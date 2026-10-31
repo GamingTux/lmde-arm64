@@ -92,7 +92,7 @@ fi
 mkfs.btrfs -f -L rootfs "$ROOT_DEV" > /dev/null
 
 mount -v "$ROOT_DEV" "${ROOTFS_DIR}" -t btrfs -o compress=zstd:2,noatime,nodiratime,ssd
-rsync -aHAXx "${STAGING}/" "${ROOTFS_DIR}/"
+rsync -aHAXx --numeric-ids "${STAGING}/" "${ROOTFS_DIR}/"
 rm -rf "${STAGING}"
 
 mkdir -p "${ROOTFS_DIR}/boot/firmware"
