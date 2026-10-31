@@ -19,6 +19,7 @@ cinnamon
 xdg-desktop-portal-xapp
 xreader
 nemo
+nemo-python
 nemo-fileroller
 nemo-preview
 nemo-share
