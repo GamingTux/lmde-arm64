@@ -7,8 +7,8 @@ export DEB_BUILD_PROFILES="nocheck"
 
 # Basis-Architektur-Flags für den BCM2712 (Cortex-A76)
 # -ffat-lto-objects stellt sicher, dass statische .a-Archive nach dh_strip ihre Symbole behalten
-BASE_FLAGS="-march=armv8.2-a+crypto+fp16+dotprod -mtune=cortex-a76 -flto=auto -ffat-lto-objects -ftree-vectorize"
-export DEB_LDFLAGS_MAINT_APPEND="-flto=auto -ffat-lto-objects"
+ARCH_FLAGS="-march=armv8.2-a+crypto+fp16+dotprod -mtune=cortex-a76 -ftree-vectorize"
+LTO_FLAGS="-flto=auto -ffat-lto-objects"
 
 ROOT_DIR="$(pwd)"
 REPO_DIR="$ROOT_DIR/repo"
@@ -57,17 +57,37 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
 
   # 1. Optimierungsstufe setzen (-O3 für Stufe 0, -O2 für Stufe 1)
   case "$pkg" in
-    zlib|lz4|zstd|pixman|libpng1.6|libjpeg-turbo|libwebp|freetype|harfbuzz|sqlite3|dav1d|libvpx|x264|x265|libde265|openh264|ffmpeg)
+    zlib|lz4|zstd|xz-utils|bzip2|7zip|nettle|gnutls28|openssl|pixman|libpng1.6|libjpeg-turbo|libwebp|freetype|harfbuzz|cairo|gdk-pixbuf|pango1.0|libdrm|mesa|babl|gegl|sqlite3|opus|flac|libvorbis|lame|dav1d|libvpx|x264|x265|libde265|openh264|pipewire|ffmpeg|mpv|vlc|python3.13)
       OPT_LEVEL="-O3"
       ;;
     *)
       OPT_LEVEL="-O2"
       ;;
   esac
-  export DEB_CFLAGS_MAINT_APPEND="$BASE_FLAGS $OPT_LEVEL"
-  export DEB_CXXFLAGS_MAINT_APPEND="$BASE_FLAGS $OPT_LEVEL"
 
-  # 2. Upstream-Quellversion und Quellpaket-Name ermitteln (höchste verfügbare Version wählen)
+  # Große Pakete mit eigenem Assembler-/Symbol-Versioning ohne erzwungenes LTO im Linker bauen
+  case "$pkg" in
+    openssl|mesa|pipewire|ffmpeg|vlc|python3.13)
+      export DEB_CFLAGS_MAINT_APPEND="$ARCH_FLAGS $OPT_LEVEL"
+      export DEB_CXXFLAGS_MAINT_APPEND="$ARCH_FLAGS $OPT_LEVEL"
+      export DEB_LDFLAGS_MAINT_APPEND=""
+      ;;
+    *)
+      export DEB_CFLAGS_MAINT_APPEND="$ARCH_FLAGS $LTO_FLAGS $OPT_LEVEL"
+      export DEB_CXXFLAGS_MAINT_APPEND="$ARCH_FLAGS $LTO_FLAGS $OPT_LEVEL"
+      export DEB_LDFLAGS_MAINT_APPEND="$LTO_FLAGS"
+      ;;
+  esac
+
+  if [[ "$pkg" == "python3.13" ]]; then
+    export DEB_BUILD_OPTIONS="nocheck nopgo nobench parallel=$(nproc)"
+    export DEB_BUILD_PROFILES="nocheck nopgo"
+  else
+    export DEB_BUILD_OPTIONS="nocheck parallel=$(nproc)"
+    export DEB_BUILD_PROFILES="nocheck"
+  fi
+
+  # 2. Upstream-Quellversion und Quellpaket-Name ermitteln (höchste verfügbare Version wählen, Backports nur bei +rpt)
   QUERY_PKG="$pkg"
   if [[ -z "$(apt-cache showsrc "$QUERY_PKG" 2>/dev/null | awk '/^Version:/ {print $2; exit}')" && "$pkg" == "mint-info-gigi" ]]; then
     QUERY_PKG="mint-info"
@@ -75,6 +95,9 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
 
   UPSTREAM_VER=""
   for v in $(apt-cache showsrc "$QUERY_PKG" 2>/dev/null | awk '/^Version:/ {print $2}'); do
+    if [[ "$v" == *"~bpo"* && "$v" != *"rpt"* ]]; then
+      continue
+    fi
     if [[ -z "$UPSTREAM_VER" ]] || dpkg --compare-versions "$v" gt "$UPSTREAM_VER"; then
       UPSTREAM_VER="$v"
     fi
@@ -218,7 +241,7 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
   fi
 
   if [[ "$STEP_OK" -eq 1 ]]; then
-    if ! apt-get build-dep -y ./ < /dev/null >> "$LOG_FILE" 2>&1; then
+    if ! (apt-get build-dep -y ./ < /dev/null >> "$LOG_FILE" 2>&1 || apt-get build-dep -y -t trixie-backports ./ < /dev/null >> "$LOG_FILE" 2>&1); then
       STEP_OK=0
     fi
   fi

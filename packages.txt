@@ -1,21 +1,42 @@
-# Stufe 0: Performance-Hotspots (werden mit -O3 gebaut)
+# Stufe 0: Performance-Hotspots & Raspberry Pi (+rpt) Systempakete (werden mit -O3 gebaut)
 zlib
 lz4
 zstd
+xz-utils
+bzip2
+7zip
+nettle
+gnutls28
+openssl
 pixman
 libpng1.6
 libjpeg-turbo
 libwebp
 freetype
 harfbuzz
+cairo
+gdk-pixbuf
+pango1.0
+libdrm
+mesa
+babl
+gegl
 sqlite3
+opus
+flac
+libvorbis
+lame
 dav1d
 libvpx
 x264
 x265
 libde265
 openh264
+pipewire
 ffmpeg
+mpv
+vlc
+python3.13
 
 # Stufe 1: LMDE 7 / Cinnamon 6.8 & XApps Stack (werden stabil mit -O2 gebaut)
 xapp

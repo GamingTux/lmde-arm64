@@ -36,13 +36,26 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Configure LMDE 7 (gigi) & Debian Trixie APT sources
+      - name: Configure Raspberry Pi, LMDE 7 (gigi) & Debian Trixie APT sources
         run: |
           cat << 'EOF' > /etc/apt/sources.list.d/lmde.list
+          deb [trusted=yes] http://archive.raspberrypi.com/debian trixie main
+          deb-src [trusted=yes] http://archive.raspberrypi.com/debian trixie main
           deb-src [trusted=yes] http://packages.linuxmint.com gigi main upstream import backport
           deb [arch=amd64 trusted=yes] http://packages.linuxmint.com gigi main upstream import backport
           deb http://deb.debian.org/debian trixie main contrib non-free non-free-firmware
           deb-src http://deb.debian.org/debian trixie main contrib non-free non-free-firmware
+          deb http://deb.debian.org/debian-security trixie-security main contrib non-free non-free-firmware
+          deb-src http://deb.debian.org/debian-security trixie-security main contrib non-free non-free-firmware
+          deb http://deb.debian.org/debian trixie-updates main contrib non-free non-free-firmware
+          deb-src http://deb.debian.org/debian trixie-updates main contrib non-free non-free-firmware
+          deb http://deb.debian.org/debian trixie-backports main contrib non-free non-free-firmware
+          deb-src http://deb.debian.org/debian trixie-backports main contrib non-free non-free-firmware
+          EOF
+          cat << 'EOF' > /etc/apt/preferences.d/rpi-build.pref
+          Package: *
+          Pin: origin "archive.raspberrypi.com"
+          Pin-Priority: 1000
           EOF
           apt-get update
 
