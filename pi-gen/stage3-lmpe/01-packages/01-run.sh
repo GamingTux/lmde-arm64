@@ -191,7 +191,24 @@ cat << 'EOF' > "${ROOTFS_DIR}/etc/systemd/system/fstrim.timer.d/acpower.conf"
 ConditionACPower=true
 EOF
 
-# 12. Argon ONE UP Hardware-Pakete (Battery, Lid, Backlight + ddcci-dkms) installieren
+# 12. Eigenes LMPE Plymouth Boot-Theme installieren & nahtlosen Übergang zu LightDM konfigurieren
+install -d -m 755 "${ROOTFS_DIR}/usr/share/plymouth/themes/lmpe"
+cp -a files/plymouth/lmpe/* "${ROOTFS_DIR}/usr/share/plymouth/themes/lmpe/"
+
+install -d -m 755 "${ROOTFS_DIR}/etc/systemd/system/plymouth-quit.service.d"
+cat << 'EOF' > "${ROOTFS_DIR}/etc/systemd/system/plymouth-quit.service.d/retain-splash.conf"
+[Service]
+ExecStart=
+ExecStart=-/usr/bin/plymouth quit --retain-splash
+EOF
+
+install -d -m 755 "${ROOTFS_DIR}/etc/systemd/system/lightdm.service.d"
+cat << 'EOF' > "${ROOTFS_DIR}/etc/systemd/system/lightdm.service.d/plymouth.conf"
+[Unit]
+After=plymouth-quit.service
+EOF
+
+# 13. Argon ONE UP Hardware-Pakete (Battery, Lid, Backlight + ddcci-dkms) installieren
 install -d -m 755 "${ROOTFS_DIR}/tmp/argon-debs"
 cp files/debs/*.deb "${ROOTFS_DIR}/tmp/argon-debs/"
 
@@ -206,6 +223,7 @@ on_chroot <<- \EOF
 		dkms autoinstall -k "$KVER" || true
 		depmod -a "$KVER"
 	done
+	plymouth-set-default-theme lmpe || true
 	glib-compile-schemas /usr/share/glib-2.0/schemas || true
 	apt-get remove -y xserver-xorg-video-fbdev || true
 	systemctl enable glamor-test.service rp1-test.service lightdm argon-backlight.service argon-eeprom-psu.service irqbalance.service systemd-resolved.service fstrim.timer bluetooth.service || true

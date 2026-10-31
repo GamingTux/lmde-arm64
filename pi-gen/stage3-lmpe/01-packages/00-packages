@@ -59,3 +59,5 @@ i2c-tools
 ddcutil
 irqbalance
 systemd-resolved
+plymouth
+plymouth-themes

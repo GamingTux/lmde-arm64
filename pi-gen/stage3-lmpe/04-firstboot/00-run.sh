@@ -21,7 +21,8 @@ textbox=black,lightgray
 entry=black,white
 '
 
-# Auf sauberes Terminal (tty8) umschalten, damit keine Kernel-Meldungen das Menü stören
+# Plymouth für das interaktive First-Boot-Menü beenden und auf sauberes Terminal (tty8) umschalten
+/usr/bin/plymouth quit 2>/dev/null || true
 if [ -t 0 ]; then
     chvt 8 || true
 fi

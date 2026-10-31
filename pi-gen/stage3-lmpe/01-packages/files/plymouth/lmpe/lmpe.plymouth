@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=LMPE Official Dark
+Description=Linux Mint Pi Edition (LMPE) Resolution-Independent Boot Splash
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/lmpe
+ScriptFile=/usr/share/plymouth/themes/lmpe/lmpe.script

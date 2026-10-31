@@ -1,0 +1,46 @@
+// Deep dark OEM background color (#0a0b10)
+Window.SetBackgroundTopColor(0.039, 0.043, 0.063);
+Window.SetBackgroundBottomColor(0.039, 0.043, 0.063);
+
+sw = Window.GetWidth();
+sh = Window.GetHeight();
+
+// Proportional scaling factor (1.0 at 1920x1200, never stretches aspect ratio)
+scale_x = sw / 1920.0;
+scale_y = sh / 1200.0;
+if (scale_x < scale_y)
+    scale = scale_x;
+else
+    scale = scale_y;
+
+// 1. Centered subtle glow behind logo
+glow_raw = Image("glow.png");
+glow_w = Math.Int(1200 * scale);
+glow_h = Math.Int(675 * scale);
+glow_img = glow_raw.Scale(glow_w, glow_h);
+glow_sprite = Sprite(glow_img);
+glow_sprite.SetPosition(sw / 2 - glow_w / 2, sh * 0.44 - glow_h / 2, -50);
+
+// 2. Centered proportional LMPE emblem & typography
+logo_raw = Image("logo.png");
+logo_w = Math.Int(720 * scale);
+logo_h = Math.Int(logo_w * logo_raw.GetHeight() / logo_raw.GetWidth());
+logo_img = logo_raw.Scale(logo_w, logo_h);
+logo_sprite = Sprite(logo_img);
+logo_sprite.SetPosition(sw / 2 - logo_w / 2, sh * 0.44 - logo_h / 2, 10);
+
+// 3. Centered proportional rotating spinner below logo
+sp_raw = Image("spinner.png");
+sp_sz = Math.Int(64 * scale);
+if (sp_sz < 32)
+    sp_sz = 32;
+sp_img = sp_raw.Scale(sp_sz, sp_sz);
+sp_sprite = Sprite(sp_img);
+sp_sprite.SetPosition(sw / 2 - sp_sz / 2, sh * 0.82 - sp_sz / 2, 20);
+
+angle = 0;
+fun refresh_callback() {
+    angle += 0.12;
+    sp_sprite.SetImage(sp_img.Rotate(angle));
+}
+Plymouth.SetRefreshFunction(refresh_callback);
