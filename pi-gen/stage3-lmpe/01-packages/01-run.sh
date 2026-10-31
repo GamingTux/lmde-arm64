@@ -105,15 +105,37 @@ if [ -d /sys/class/net/eth0 ]; then
         /sbin/ip link set dev eth0 down 2>/dev/null || true
     fi
 fi
+
+# Enable 4-Core Receive Packet Steering (RPS/RFS) on active network interfaces
+for rx_dir in /sys/class/net/wlan*/queues/rx-0 /sys/class/net/eth*/queues/rx-0; do
+    [ -d "$rx_dir" ] || continue
+    echo f > "$rx_dir/rps_cpus" 2>/dev/null || true
+    echo 4096 > "$rx_dir/rps_flow_cnt" 2>/dev/null || true
+done
 EOF
 chmod 755 "${ROOTFS_DIR}/usr/sbin/lmpe-runtime-tune"
 
 cat << 'EOF' > "${ROOTFS_DIR}/etc/udev/rules.d/90-lmpe-argon-runtime.rules"
+# Optimal I/O Scheduler, Read-Ahead & Core Queue Affinity for NVMe SSDs and eMMC/SD/USB storage
+ACTION=="add|change", KERNEL=="nvme[0-9]*n[0-9]*", ATTR{queue/scheduler}="none", ATTR{queue/read_ahead_kb}="512", ATTR{queue/rq_affinity}="2"
+ACTION=="add|change", KERNEL=="mmcblk[0-9]*|sd[a-z]", ATTR{queue/scheduler}="mq-deadline", ATTR{queue/read_ahead_kb}="256", ATTR{queue/rq_affinity}="2"
+
+# 4-Core Receive Packet Steering (RPS/RFS) on network interfaces
+ACTION=="add", SUBSYSTEM=="net", KERNEL=="wlan*|eth*", ATTR{queues/rx-0/rps_cpus}="f", ATTR{queues/rx-0/rps_flow_cnt}="4096"
+
+# Runtime IRQ & Ethernet tuning
 ACTION=="add", SUBSYSTEM=="net", KERNEL=="eth0", DRIVERS=="macb", RUN+="/usr/sbin/lmpe-runtime-tune"
 ACTION=="add", SUBSYSTEM=="drm", KERNEL=="card0", RUN+="/usr/sbin/lmpe-runtime-tune"
 EOF
 
-# 7. Geister-Audioausgang (HDMI-A-2 internes Display) in WirePlumber deaktivieren
+# 7.Geister-Audioausgang (HDMI-A-2 internes Display) in WirePlumber deaktivieren & doppelte Audio-Session unter LightDM verhindern
+for unit in pipewire.socket pipewire-pulse.socket pipewire.service pipewire-pulse.service wireplumber.service filter-chain.service; do
+    install -d -m 755 "${ROOTFS_DIR}/etc/systemd/user/${unit}.d"
+    cat << 'EOF' > "${ROOTFS_DIR}/etc/systemd/user/${unit}.d/nosystem.conf"
+[Unit]
+ConditionUser=!@system
+EOF
+done
 install -d -m 755 "${ROOTFS_DIR}/etc/wireplumber/wireplumber.conf.d"
 cat << 'EOF' > "${ROOTFS_DIR}/etc/wireplumber/wireplumber.conf.d/50-disable-internal-hdmi-audio.conf"
 monitor.alsa.rules = [
@@ -228,5 +250,7 @@ on_chroot <<- \EOF
 	glib-compile-schemas /usr/share/glib-2.0/schemas || true
 	apt-get remove -y xserver-xorg-video-fbdev || true
 	systemctl enable glamor-test.service rp1-test.service lightdm argon-backlight.service argon-eeprom-psu.service irqbalance.service systemd-resolved.service fstrim.timer bluetooth.service || true
+	systemctl disable ModemManager.service nfs-blkmap.service rpc-statd-notify.service 2>/dev/null || true
+	systemctl mask NetworkManager-wait-online.service rpcbind.service rpcbind.socket serial-getty@ttyAMA10.service 2>/dev/null || true
 	systemctl set-default graphical.target
 EOF
