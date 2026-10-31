@@ -24,9 +24,6 @@ camera_auto_detect=0
 display_auto_detect=0
 auto_initramfs=1
 
-# Erzwingt 4K-Page-Size-Kernel (wichtig für Box64 & Wine)
-kernel=kernel8.img
-
 # --- Argon ONE UP / CM5 spezifische Overlays ---
 dtoverlay=dwc2,dr_mode=host
 dtoverlay=argon-oneup-battery
