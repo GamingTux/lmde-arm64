@@ -1,0 +1,2 @@
+deb [arch=arm64 signed-by=/usr/share/keyrings/lmde-arm64.gpg] https://GamingTux.github.io/lmde-arm64 gigi main
+deb [arch=amd64 signed-by=/usr/share/keyrings/linuxmint-keyring.gpg] http://packages.linuxmint.com gigi main upstream import backport

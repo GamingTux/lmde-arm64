@@ -1,0 +1,11 @@
+Package: *
+Pin: origin "archive.raspberrypi.com"
+Pin-Priority: 1000
+
+Package: *
+Pin: origin "GamingTux.github.io"
+Pin-Priority: 700
+
+Package: *
+Pin: origin "packages.linuxmint.com"
+Pin-Priority: 700

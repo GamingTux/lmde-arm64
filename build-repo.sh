@@ -3,6 +3,7 @@ set -euo pipefail
 
 export DEBIAN_FRONTEND=noninteractive
 export DEB_BUILD_OPTIONS="nocheck parallel=$(nproc)"
+export DEB_BUILD_PROFILES="nocheck"
 
 # Basis-Architektur-Flags für den BCM2712 (Cortex-A76)
 BASE_FLAGS="-march=armv8.2-a+crypto+fp16+dotprod -mtune=cortex-a76 -flto=auto -ftree-vectorize"
@@ -272,6 +273,26 @@ done 3< "$ROOT_DIR/packages.txt"
 cd "$REPO_DIR"
 
 if compgen -G "pool/main/*.deb" > /dev/null; then
+  # Debian Trixie t64-Kompatibilität für LMDE-Bibliotheken sicherstellen
+  for t64_base in libcinnamon-desktop4 libcvc0 libmuffin0; do
+    for deb_file in pool/main/${t64_base}_*.deb; do
+      [[ -f "$deb_file" ]] || continue
+      if ! dpkg-deb -f "$deb_file" Provides 2>/dev/null | grep -q "${t64_base}t64"; then
+        deb_ver="$(dpkg-deb -f "$deb_file" Version)"
+        tmp_deb_dir="$(mktemp -d)"
+        dpkg-deb -R "$deb_file" "$tmp_deb_dir"
+        sed -i "/^Provides:/d; /^Replaces:/d; /^Conflicts:/d" "$tmp_deb_dir/DEBIAN/control"
+        cat << EOF >> "$tmp_deb_dir/DEBIAN/control"
+Provides: ${t64_base}t64 (= ${deb_ver})
+Replaces: ${t64_base}t64
+Conflicts: ${t64_base}t64
+EOF
+        dpkg-deb -b "$tmp_deb_dir" "$deb_file" >/dev/null
+        rm -rf "$tmp_deb_dir"
+      fi
+    done
+  done
+
   echo "[$(date -u '+%H:%M:%S')] 📦 Generiere APT-Repository-Index und GPG-Signaturen..."
   dpkg-scanpackages --arch arm64 pool/ > dists/gigi/main/binary-arm64/Packages 2>/dev/null
   gzip -9c dists/gigi/main/binary-arm64/Packages > dists/gigi/main/binary-arm64/Packages.gz

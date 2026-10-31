@@ -1,0 +1,142 @@
+name: Build Raspberry Pi 5 LMPE Btrfs Image (pi-gen)
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release Tag (leer lassen für automatisches Datum vYYYY.MM.DD)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  build-image:
+    runs-on: ubuntu-24.04-arm
+    container:
+      image: debian:trixie
+      options: --privileged -v /dev:/dev -v /lib/modules:/lib/modules:ro
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Install pi-gen & Btrfs build dependencies
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            quilt \
+            parted \
+            coreutils \
+            qemu-user-binfmt \
+            debootstrap \
+            zerofree \
+            zip \
+            dosfstools \
+            e2fsprogs \
+            btrfs-progs \
+            libcap2-bin \
+            grep \
+            rsync \
+            xz-utils \
+            curl \
+            ca-certificates \
+            xxd \
+            file \
+            git \
+            kmod \
+            bc \
+            gpg \
+            pigz \
+            arch-test \
+            fdisk \
+            mount \
+            util-linux \
+            debian-archive-keyring \
+            gh
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare loop devices & binfmt
+        run: |
+          git config --global --add safe.directory '*'
+          modprobe loop || true
+          modprobe btrfs || true
+          for i in $(seq 0 15); do
+            mknod -m 660 "/dev/loop${i}" b 7 "${i}" 2>/dev/null || true
+          done
+
+      - name: Run pi-gen image build
+        run: |
+          cd "${GITHUB_WORKSPACE}/pi-gen"
+          chmod +x build.sh build-docker.sh
+          find stage* export-image -name "*.sh" -exec chmod +x {} +
+
+          ./build.sh &
+          PIGEN_PID=$!
+
+          (
+            ELAPSED=0
+            while kill -0 "$PIGEN_PID" 2>/dev/null; do
+              sleep 60
+              if kill -0 "$PIGEN_PID" 2>/dev/null; then
+                ELAPSED=$((ELAPSED + 60))
+                LAST_STEP="$(tail -n 1 work/*/build.log 2>/dev/null || echo 'läuft...')"
+                echo "⏱️ [pi-gen] Image-Build läuft (${ELAPSED}s) | Letzter Status: ${LAST_STEP}"
+              fi
+            done
+          ) &
+          HB_PID=$!
+
+          if wait "$PIGEN_PID"; then
+            RC=0
+          else
+            RC=$?
+          fi
+          kill "$HB_PID" 2>/dev/null || true
+          wait "$HB_PID" 2>/dev/null || true
+
+          if [[ "$RC" -ne 0 ]]; then
+            echo "❌ pi-gen Fehler! Letzte 100 Zeilen aus build.log:"
+            tail -n 100 work/*/build.log || true
+            exit "$RC"
+          fi
+
+          ls -lh deploy/
+          cd deploy/
+          sha256sum *.img.xz > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Publish Image to GitHub Releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd "${GITHUB_WORKSPACE}/pi-gen/deploy"
+          TAG="${{ inputs.release_tag }}"
+          if [[ -z "$TAG" ]]; then
+            TAG="v$(date -u +%Y.%m.%d-%H%M)"
+          fi
+
+          IMG_XZ="$(ls -1 *.img.xz | head -n 1)"
+          {
+            echo "## 🍓 LMPE ARM64 (LMDE 7 'gigi' / Cinnamon) Image für Raspberry Pi 5 & Argon ONE UP CM5"
+            echo ""
+            echo "- **Basis:** Raspberry Pi OS Lite 64-Bit (Debian 13 Trixie) + `lmde-arm64` (`-O3`/`-O2` Cortex-A76)"
+            echo "- **Root-Dateisystem:** \`Btrfs\` (\`defaults,compress=zstd:2,noatime,nodiratime,ssd,discard=async\`)"
+            echo "- **Boot-Partition:** \`FAT32\` mit vorkonfigurierter \`config.txt\` (PCIe Gen3 NVMe, 2.8 GHz Pi 5 Profil, Argon ONE UP Overlays & Lüfterkurve)"
+            echo "- **Desktop:** Cinnamon 6.6 + Muffin + Nemo + XApps + LightDM (`slick-greeter`)"
+            echo ""
+            echo "### SHA256 Checksumme"
+            echo "\`\`\`text"
+            cat SHA256SUMS.txt
+            echo "\`\`\`"
+          } > release_body.md
+
+          gh release create "$TAG" \
+            "$IMG_XZ" \
+            SHA256SUMS.txt \
+            *.info \
+            --title "LMPE Pi 5 / CM5 ARM64 Btrfs Image ($TAG)" \
+            --notes-file release_body.md

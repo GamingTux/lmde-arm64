@@ -1,0 +1,53 @@
+# For more options and information see
+# http://rptl.io/configtxt
+
+# --- Basis-Hardware & Schnittstellen ---
+dtparam=i2c_arm=on
+dtparam=uart0=on
+arm_64bit=1
+
+# --- Performance & PCIe / NVMe ---
+dtparam=nvme
+dtparam=pciex1_gen=3
+dtparam=ant2
+usb_max_current_enable=1
+arm_boost=1
+dtparam=cm5-sdcard-fast
+
+# --- Display, Grafik & Boot ---
+dtoverlay=vc4-kms-v3d
+max_framebuffers=2
+disable_fw_kms_setup=1
+disable_overscan=1
+disable_splash=1
+camera_auto_detect=0
+display_auto_detect=0
+auto_initramfs=1
+
+# Erzwingt 4K-Page-Size-Kernel (wichtig für Box64 & Wine)
+kernel=kernel8.img
+
+# --- Argon ONE UP / CM5 spezifische Overlays ---
+dtoverlay=dwc2,dr_mode=host
+dtoverlay=argon-oneup-battery
+dtoverlay=argon-oneup-lid
+
+# --- Raspberry Pi 5 / CM5 Overclocking & Aggressive Lüftersteuerung ---
+[pi5]
+arm_freq=2800
+
+# Lüfterkurve (Früher Start bei 40°C für kühlen Betrieb im Laptop-Gehäuse)
+dtparam=fan_temp0=40000
+dtparam=fan_temp0_speed=100
+dtparam=fan_temp0_hyst=5000
+dtparam=fan_temp1=50000
+dtparam=fan_temp1_speed=150
+dtparam=fan_temp1_hyst=5000
+dtparam=fan_temp2=60000
+dtparam=fan_temp2_speed=200
+dtparam=fan_temp2_hyst=5000
+dtparam=fan_temp3=70000
+dtparam=fan_temp3_speed=250
+dtparam=fan_temp3_hyst=5000
+
+[all]
