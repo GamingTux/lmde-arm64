@@ -19,6 +19,7 @@ rm -f "$ROOT_DIR/.build_failed"
 TOTAL="$(grep -vE '^\s*(#|$)' "$ROOT_DIR/packages.txt" | wc -l | xargs)"
 CURRENT=0
 BUILD_FAILED=0
+PENDING_DELTA_DEBS=()
 
 {
   echo "## 🛠️ LMPE ARM64 (Cortex-A76) Build-Dashboard"
@@ -121,23 +122,20 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
     fi
   fi
 
-  # 4. Delta-Build-Treffer: Kompilieren überspringen, aber .deb-Pakete im Container installieren
+  # 4. Delta-Build-Treffer: Kompilieren überspringen (.deb-Pakete vormerken, falls ein Folgepaket neu gebaut werden muss)
   if [[ "$DELTA_HIT" -eq 1 ]]; then
-    if ! (dpkg -i "${EXISTING_DEBS[@]}" < /dev/null >> "$LOG_FILE" 2>&1 || apt-get install -f -y < /dev/null >> "$LOG_FILE" 2>&1); then
-      DURATION=$(( $(date +%s) - PKG_START_TIME ))
-      echo "[$(date -u '+%H:%M:%S')] ❌ [$CURRENT/$TOTAL] Fehler beim Installieren der gecachten .deb-Pakete für $pkg!"
-      tail -n 100 "$LOG_FILE" || true
-      echo "| $CURRENT/$TOTAL | \`$pkg\` | \`$TARGET_VER\` | \`$OPT_LEVEL\` | ❌ Fehler | ${DURATION}s |" >> "$SUMMARY_FILE"
-      BUILD_FAILED=1
-      break
-    fi
+    PENDING_DELTA_DEBS+=("${EXISTING_DEBS[@]}")
     DURATION=$(( $(date +%s) - PKG_START_TIME ))
     echo "[$(date -u '+%H:%M:%S')] ⏭️ [$CURRENT/$TOTAL] $pkg übersprungen (bereits aktuell im Repo)"
     echo "| $CURRENT/$TOTAL | \`$pkg\` | \`$TARGET_VER\` | \`$OPT_LEVEL\` | ⏭️ Delta-Skip | ${DURATION}s |" >> "$SUMMARY_FILE"
     continue
   fi
 
-  # 5. Neubau nötig
+  # 5. Neubau nötig (zuvor übersprungene .deb-Abhängigkeiten bei Bedarf jetzt installieren)
+  if [[ ${#PENDING_DELTA_DEBS[@]} -gt 0 ]]; then
+    dpkg -i "${PENDING_DELTA_DEBS[@]}" < /dev/null >> "$LOG_FILE" 2>&1 || apt-get install -f -y < /dev/null >> "$LOG_FILE" 2>&1
+    PENDING_DELTA_DEBS=()
+  fi
   echo "[$(date -u '+%H:%M:%S')] 🚀 [$CURRENT/$TOTAL] Starte $pkg ($UPSTREAM_VER) [Flags: $OPT_LEVEL]..."
 
   # Alte .deb-Dateien dieses Quellpakets aus ./repo/pool/main/ löschen

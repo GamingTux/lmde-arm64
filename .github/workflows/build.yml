@@ -13,10 +13,10 @@ jobs:
     runs-on: ubuntu-24.04-arm
     container:
       image: debian:trixie
+    defaults:
+      run:
+        shell: bash
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Install build tools
         run: |
           export DEBIAN_FRONTEND=noninteractive
@@ -32,6 +32,9 @@ jobs:
             ca-certificates \
             git \
             xz-utils
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Configure LMDE 7 (gigi) & Debian Trixie APT sources
         run: |
@@ -68,14 +71,20 @@ jobs:
 
       - name: 60-Day Keep-Alive Commit
         if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git config --global --add safe.directory "${GITHUB_WORKSPACE}"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --global --add safe.directory '*'
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          KEEPALIVE_DIR="$(mktemp -d)"
+          git clone --depth 1 --branch main "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$KEEPALIVE_DIR"
+          cd "$KEEPALIVE_DIR"
           date -u > .last_sync
           git add .last_sync
           git commit -m "chore: update .last_sync keep-alive" || true
           git push origin HEAD:main
+          rm -rf "$KEEPALIVE_DIR"
 
       - name: Verify overall build status
         if: always()
