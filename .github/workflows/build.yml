@@ -5,12 +5,18 @@ on:
   schedule:
     - cron: '0 3 * * 1'
 
+concurrency:
+  group: build-lmpe-repo
+  cancel-in-progress: false
+
 permissions:
   contents: write
+  actions: write
 
 jobs:
   build:
     runs-on: ubuntu-24.04-arm
+    timeout-minutes: 350
     container:
       image: debian:trixie
     defaults:
@@ -31,10 +37,27 @@ jobs:
             gnupg \
             ca-certificates \
             git \
+            jq \
             xz-utils
 
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Wait for any earlier running repo build to finish deploying to gh-pages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CUR_RUN_ID="${GITHUB_RUN_ID}"
+          while true; do
+            ACTIVE_OLDER="$(curl -sf -H "Authorization: Bearer ${GH_TOKEN}" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/build.yml/runs?status=in_progress" \
+              | jq -r --argjson cur "$CUR_RUN_ID" '[.workflow_runs[] | select(.id < $cur) | .id] | length' || echo 0)"
+            if [[ "${ACTIVE_OLDER:-0}" -eq 0 ]]; then
+              break
+            fi
+            echo "⏳ Warte auf Abschluss eines älteren laufenden Repo-Builds vor dem Klonen von gh-pages..."
+            sleep 30
+          done
 
       - name: Configure Raspberry Pi, LMDE 7 (gigi) & Debian Trixie APT sources
         run: |
@@ -98,6 +121,18 @@ jobs:
           git commit -m "chore: update .last_sync keep-alive" || true
           git push origin HEAD:main
           rm -rf "$KEEPALIVE_DIR"
+
+      - name: Trigger continuation run if time budget was reached
+        if: always() && env.TIME_LIMIT_REACHED == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🔄 Zeitbudget im aktuellen Lauf erreicht – starte automatisch Folge-Lauf für verbleibende Pakete..."
+          curl -sf -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/build.yml/dispatches" \
+            -d '{"ref":"main"}'
 
       - name: Verify overall build status
         if: always()

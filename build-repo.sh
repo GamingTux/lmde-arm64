@@ -10,6 +10,11 @@ export DEB_BUILD_PROFILES="nocheck"
 ARCH_FLAGS="-march=armv8.2-a+crypto+fp16+dotprod -mtune=cortex-a76 -ftree-vectorize"
 LTO_FLAGS="-flto=auto -ffat-lto-objects"
 
+SCRIPT_START_TIME="$(date +%s)"
+# 4h 45m (17100s) Zeitbudget pro GitHub-Actions-Lauf (Sicherheitsabstand zum 6h-Hard-Limit)
+MAX_RUN_SECONDS=17100
+TIME_LIMIT_REACHED=0
+
 ROOT_DIR="$(pwd)"
 REPO_DIR="$ROOT_DIR/repo"
 PACKAGES_FILE="$REPO_DIR/dists/gigi/main/binary-arm64/Packages"
@@ -17,6 +22,17 @@ SUMMARY_FILE="${GITHUB_STEP_SUMMARY:-/tmp/github_step_summary.md}"
 
 mkdir -p "$REPO_DIR/pool/main" "$REPO_DIR/dists/gigi/main/binary-arm64"
 rm -f "$ROOT_DIR/.build_failed"
+
+# Unnötige Dokumentations-, Debug-, Source- und Cross-Compile-Pakete aus bestehendem Pool bereinigen
+rm -f "$REPO_DIR"/pool/main/*dbgsym*.deb \
+      "$REPO_DIR"/pool/main/*-dbg_*.deb \
+      "$REPO_DIR"/pool/main/*.ddeb \
+      "$REPO_DIR"/pool/main/*-doc_*.deb \
+      "$REPO_DIR"/pool/main/*-docs_*.deb \
+      "$REPO_DIR"/pool/main/*-examples_*.deb \
+      "$REPO_DIR"/pool/main/*-tests_*.deb \
+      "$REPO_DIR"/pool/main/*-source_*.deb \
+      "$REPO_DIR"/pool/main/*-mingw-*.deb
 
 # Falls zlib1g-dev oder liblz4-dev aus einem früheren Lauf ohne -ffat-lto-objects leere .a-Archive enthalten, zum Neubau entfernen
 for check_dev in "$REPO_DIR"/pool/main/zlib1g-dev_*.deb "$REPO_DIR"/pool/main/liblz4-dev_*.deb; do
@@ -36,6 +52,7 @@ TOTAL="$(grep -vE '^\s*(#|$)' "$ROOT_DIR/packages.txt" | wc -l | xargs)"
 CURRENT=0
 BUILD_FAILED=0
 PENDING_DELTA_DEBS=()
+ALLOWED_SOURCES=()
 
 {
   echo "## 🛠️ LMPE ARM64 (Cortex-A76) Build-Dashboard"
@@ -43,6 +60,39 @@ PENDING_DELTA_DEBS=()
   echo "| # | Paket | Version | Optimierung | Status | Dauer |"
   echo "|---|---|---|---|---|---|"
 } >> "$SUMMARY_FILE"
+
+run_dpkg_build_with_heartbeat() {
+  local pkg_name="$1"
+  local cur_idx="$2"
+  local tot_idx="$3"
+  local log_f="$4"
+  local rc=0
+
+  dpkg-buildpackage -b -uc -us -j"$(nproc)" < /dev/null >> "$log_f" 2>&1 &
+  local b_pid=$!
+
+  (
+    local elapsed=0
+    while kill -0 "$b_pid" 2>/dev/null; do
+      sleep 60
+      if kill -0 "$b_pid" 2>/dev/null; then
+        elapsed=$((elapsed + 60))
+        echo "   ⏱️ [$cur_idx/$tot_idx] $pkg_name kompiliert noch... (${elapsed}s)"
+      fi
+    done
+  ) &
+  local hb_pid=$!
+
+  if wait "$b_pid"; then
+    rc=0
+  else
+    rc=$?
+  fi
+
+  kill "$hb_pid" 2>/dev/null || true
+  wait "$hb_pid" 2>/dev/null || true
+  return "$rc"
+}
 
 while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
   # Kommentare und Leerzeilen ignorieren
@@ -55,19 +105,21 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
   LOG_FILE="/tmp/build-${pkg}.log"
   : > "$LOG_FILE"
 
-  # 1. Optimierungsstufe setzen (-O3 für Stufe 0, -O2 für Stufe 1)
+  # 1. Optimierungsstufe setzen (-O2 für Stufe 1 Cinnamon/XApps, -O3 für alle Stufe-0-Pakete)
   case "$pkg" in
-    zlib|lz4|zstd|xz-utils|bzip2|7zip|nettle|gnutls28|openssl|pixman|libpng1.6|libjpeg-turbo|libwebp|freetype|harfbuzz|cairo|gdk-pixbuf|pango1.0|libdrm|mesa|babl|gegl|sqlite3|opus|flac|libvorbis|lame|dav1d|libvpx|x264|x265|libde265|openh264|pipewire|ffmpeg|mpv|vlc|python3.13)
-      OPT_LEVEL="-O3"
+    xapp|cjs|cinnamon-menus|cinnamon-desktop|muffin|cinnamon-settings-daemon|cinnamon-control-center|cinnamon-screensaver|cinnamon-session|cinnamon|xdg-desktop-portal-xapp|xreader|nemo|nemo-python|nemo-fileroller|nemo-preview|nemo-share|nemo-emblems|nemo-image-converter|nemo-audio-tab|nemo-compare|nemo-media-columns|xed|xviewer|xviewer-plugins|pix|slick-greeter|mint-info-gigi)
+      OPT_LEVEL="-O2"
       ;;
     *)
-      OPT_LEVEL="-O2"
+      OPT_LEVEL="-O3"
       ;;
   esac
 
-  # Große Pakete mit eigenem Assembler-/Symbol-Versioning ohne erzwungenes LTO im Linker bauen
+  # Große Pakete mit eigenem Assembler-/Rust-/Symbol-Versioning direkt ohne erzwungenes LTO im Linker bauen
+  USE_LTO=1
   case "$pkg" in
-    openssl|mesa|pipewire|ffmpeg|vlc|python3.13)
+    gmp|libxcrypt|libgcrypt20|nettle|gnutls28|openssl|jemalloc|highway|icu|glib2.0|mesa|xorg-server|xwayland|librsvg|poppler|aom|svt-av1|jpeg-xl|libplacebo|alsa-lib|pulseaudio|pipewire|wireplumber|gstreamer1.0|gst-plugins-base1.0|gst-plugins-good1.0|gst-plugins-bad1.0|gst-plugins-ugly1.0|gst-libav1.0|ffmpeg|mpv|vlc|gtk+3.0|gtk4|mozjs128|python3.13|btop|imagemagick|ghostscript|gimp|inkscape|audacity)
+      USE_LTO=0
       export DEB_CFLAGS_MAINT_APPEND="$ARCH_FLAGS $OPT_LEVEL"
       export DEB_CXXFLAGS_MAINT_APPEND="$ARCH_FLAGS $OPT_LEVEL"
       export DEB_LDFLAGS_MAINT_APPEND=""
@@ -105,13 +157,14 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
 
   SRC_NAME="$(apt-cache showsrc "$QUERY_PKG" 2>/dev/null | awk '/^Package:/ {print $2; exit}')"
   [[ -z "$SRC_NAME" ]] && SRC_NAME="$QUERY_PKG"
+  ALLOWED_SOURCES+=("$pkg" "$QUERY_PKG" "$SRC_NAME")
 
   if [[ -z "$UPSTREAM_VER" ]]; then
     DURATION=$(( $(date +%s) - PKG_START_TIME ))
     echo "[$(date -u '+%H:%M:%S')] ❌ [$CURRENT/$TOTAL] Konnte Upstream-Version für $pkg ($QUERY_PKG) nicht ermitteln!"
     echo "| $CURRENT/$TOTAL | \`$pkg\` | \`n/a\` | \`$OPT_LEVEL\` | ❌ Fehler | ${DURATION}s |" >> "$SUMMARY_FILE"
     BUILD_FAILED=1
-    break
+    continue
   fi
 
   TARGET_VER="${UPSTREAM_VER}+pi5"
@@ -168,6 +221,14 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
     echo "[$(date -u '+%H:%M:%S')] ⏭️ [$CURRENT/$TOTAL] $pkg übersprungen (bereits aktuell im Repo)"
     echo "| $CURRENT/$TOTAL | \`$pkg\` | \`$TARGET_VER\` | \`$OPT_LEVEL\` | ⏭️ Delta-Skip | ${DURATION}s |" >> "$SUMMARY_FILE"
     continue
+  fi
+
+  # 4b. Zeitbudget prüfen, bevor ein neuer Paketbau gestartet wird
+  TOTAL_ELAPSED=$(( $(date +%s) - SCRIPT_START_TIME ))
+  if [[ "$TOTAL_ELAPSED" -ge "$MAX_RUN_SECONDS" ]]; then
+    echo "[$(date -u '+%H:%M:%S')] ⏳ Zeitbudget (${TOTAL_ELAPSED}s / ${MAX_RUN_SECONDS}s) erreicht – sichere bisher gebaute Pakete und setze im Folge-Lauf fort."
+    TIME_LIMIT_REACHED=1
+    break
   fi
 
   # 5. Neubau nötig (zuvor übersprungene .deb-Abhängigkeiten bei Bedarf jetzt installieren)
@@ -246,40 +307,35 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
     fi
   fi
 
-  # Paket kompilieren mit 60-Sekunden-Heartbeat
+  # Paket kompilieren mit 60-Sekunden-Heartbeat (und automatischem Non-LTO-Fallback bei LTO-Linker-Fehlern)
   if [[ "$STEP_OK" -eq 1 ]]; then
-    dpkg-buildpackage -b -uc -us -j"$(nproc)" < /dev/null >> "$LOG_FILE" 2>&1 &
-    BUILD_PID=$!
-
-    (
-      ELAPSED=0
-      while kill -0 "$BUILD_PID" 2>/dev/null; do
-        sleep 60
-        if kill -0 "$BUILD_PID" 2>/dev/null; then
-          ELAPSED=$((ELAPSED + 60))
-          echo "   ⏱️ [$CURRENT/$TOTAL] $pkg kompiliert noch... (${ELAPSED}s)"
+    if ! run_dpkg_build_with_heartbeat "$pkg" "$CURRENT" "$TOTAL" "$LOG_FILE"; then
+      if [[ "$USE_LTO" -eq 1 ]]; then
+        echo "   🔄 [$CURRENT/$TOTAL] LTO-Build für $pkg fehlgeschlagen – wiederhole automatisch ohne LTO (mit $ARCH_FLAGS $OPT_LEVEL)..."
+        export DEB_CFLAGS_MAINT_APPEND="$ARCH_FLAGS $OPT_LEVEL"
+        export DEB_CXXFLAGS_MAINT_APPEND="$ARCH_FLAGS $OPT_LEVEL"
+        export DEB_LDFLAGS_MAINT_APPEND=""
+        debian/rules clean < /dev/null >> "$LOG_FILE" 2>&1 || true
+        if ! run_dpkg_build_with_heartbeat "$pkg" "$CURRENT" "$TOTAL" "$LOG_FILE"; then
+          STEP_OK=0
         fi
-      done
-    ) &
-    HEARTBEAT_PID=$!
-
-    if wait "$BUILD_PID"; then
-      BUILD_RC=0
-    else
-      BUILD_RC=$?
-    fi
-
-    kill "$HEARTBEAT_PID" 2>/dev/null || true
-    wait "$HEARTBEAT_PID" 2>/dev/null || true
-
-    if [[ "$BUILD_RC" -ne 0 ]]; then
-      STEP_OK=0
+      else
+        STEP_OK=0
+      fi
     fi
   fi
 
-  # Debug-Pakete löschen, .deb-Pakete installieren und in den Pool verschieben
+  # Debug-, Doku-, Test- und Cross-Compile-Ballast löschen, .deb-Pakete installieren und in den Pool verschieben
   if [[ "$STEP_OK" -eq 1 ]]; then
-    rm -f ../*dbgsym*.deb ../*-dbg_*.deb ../*.ddeb
+    rm -f ../*dbgsym*.deb \
+          ../*-dbg_*.deb \
+          ../*.ddeb \
+          ../*-doc_*.deb \
+          ../*-docs_*.deb \
+          ../*-examples_*.deb \
+          ../*-tests_*.deb \
+          ../*-source_*.deb \
+          ../*-mingw-*.deb
     if ! (dpkg -i ../*.deb < /dev/null >> "$LOG_FILE" 2>&1 || apt-get install -f -y < /dev/null >> "$LOG_FILE" 2>&1); then
       STEP_OK=0
     else
@@ -307,7 +363,25 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
 
 done 3< "$ROOT_DIR/packages.txt"
 
-# Repository-Metadaten generieren und signieren (auch bei Teil-Erfolg / BUILD_FAILED=1!)
+# Automatischer Orphan-Cleaner: Lösche verwaiste .deb-Pakete in pool/main, deren Quellpaket aus packages.txt entfernt wurde
+if [[ "$TIME_LIMIT_REACHED" -eq 0 && ${#ALLOWED_SOURCES[@]} -gt 0 ]]; then
+  declare -A ALLOWED_MAP=()
+  for s in "${ALLOWED_SOURCES[@]}"; do
+    ALLOWED_MAP["$s"]=1
+  done
+  for deb in "$REPO_DIR"/pool/main/*.deb; do
+    [[ -e "$deb" ]] || continue
+    deb_src="$(dpkg-deb -f "$deb" Source 2>/dev/null | awk '{print $1}' || true)"
+    deb_pkg="$(dpkg-deb -f "$deb" Package 2>/dev/null || true)"
+    [[ -z "$deb_src" ]] && deb_src="$deb_pkg"
+    if [[ -z "${ALLOWED_MAP[$deb_src]:-}" && -z "${ALLOWED_MAP[$deb_pkg]:-}" ]]; then
+      echo "🧹 Orphan-Cleaner: Entferne verwaistes Paket $(basename "$deb") (Quellpaket: $deb_src nicht mehr in packages.txt)"
+      rm -f "$deb"
+    fi
+  done
+fi
+
+# Repository-Metadaten generieren und signieren (auch bei Teil-Erfolg / BUILD_FAILED=1 oder TIME_LIMIT_REACHED=1!)
 cd "$REPO_DIR"
 
 if compgen -G "pool/main/*.deb" > /dev/null; then
@@ -354,7 +428,8 @@ EOF
   gpg --batch --yes --export > lmde-arm64.gpg
 
   rm -rf "$GNUPGHOME"
-  echo "[$(date -u '+%H:%M:%S')] 🔐 APT-Repository erfolgreich signiert."
+  REPO_SIZE_MB="$(du -sm pool/main | awk '{print $1}')"
+  echo "[$(date -u '+%H:%M:%S')] 🔐 APT-Repository erfolgreich signiert (Aktuelle Pool-Größe: ${REPO_SIZE_MB} MB / 1000 MB GitHub-Pages-Limit)."
 else
   echo "[$(date -u '+%H:%M:%S')] ⚠️ Keine .deb-Pakete in pool/main vorhanden – überspringe Signierung."
 fi
@@ -362,11 +437,14 @@ fi
 cd "$ROOT_DIR"
 if [[ -n "${GITHUB_ENV:-}" ]]; then
   echo "BUILD_FAILED=${BUILD_FAILED}" >> "$GITHUB_ENV"
+  echo "TIME_LIMIT_REACHED=${TIME_LIMIT_REACHED}" >> "$GITHUB_ENV"
 fi
 
 if [[ "$BUILD_FAILED" -eq 1 ]]; then
   touch "$ROOT_DIR/.build_failed"
   echo "[$(date -u '+%H:%M:%S')] ⚠️ Lauf mit Fehlern beendet (BUILD_FAILED=1). Bisher gebaute Pakete werden als Partial-Deploy gesichert."
+elif [[ "$TIME_LIMIT_REACHED" -eq 1 ]]; then
+  echo "[$(date -u '+%H:%M:%S')] ⏳ Zeitbudget erreicht – bisher gebaute Pakete werden veröffentlicht und Folge-Lauf wird gestartet."
 else
   echo "[$(date -u '+%H:%M:%S')] 🎉 Alle $TOTAL Pakete erfolgreich verarbeitet!"
 fi

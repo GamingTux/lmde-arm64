@@ -1,44 +1,169 @@
-# Stufe 0: Performance-Hotspots & Raspberry Pi (+rpt) Systempakete (werden mit -O3 gebaut)
+# ==============================================================================
+# Stufe 0: Performance-Hotspots, Raspberry Pi (+rpt) & Debian Trixie Systempakete
+# Werden mit -march=armv8.2-a+crypto+fp16+dotprod -mtune=cortex-a76 -ftree-vectorize -O3 gebaut
+# ==============================================================================
+
+# --- 1. Kompression, Prüfsummen, Archive & Dateisystem ---
 zlib
 lz4
 zstd
 xz-utils
 bzip2
 7zip
+brotli
+libdeflate
+snappy
+lzo2
+xxhash
+gzip
+tar
+unzip
+zip
+libarchive
+btrfs-progs
+
+# --- 2. Kryptographie, Mathe, TLS & Netzwerk-Protokolle (+crypto Hardware-AES/SHA) ---
+gmp
 nettle
+libxcrypt
+libgcrypt20
+libsodium
+mbedtls
 gnutls28
 openssl
+nghttp2
+nghttp3
+ngtcp2
+libssh
+libssh2
+curl
+
+# --- 3. Basis-Bibliotheken, Allocator, SIMD, Regex, XML/JSON & Datenbank ---
+jemalloc
+highway
+pcre2
+re2
+expat
+icu
+libxml2
+libxslt
+json-c
+sqlite3
+glib2.0
+json-glib
+
+# --- 4. Display-Server, Wayland/X11 (+rpt), Input (+rpt) & 3D/OpenGL-Stack ---
+wayland
+libxkbcommon
+libinput
+libdrm
+mesa
+libepoxy
 pixman
+graphene
+cogl
+clutter-1.0
+xorg-server
+xwayland
+libsdl2
+
+# --- 5. Schrift-, Farb-, Bild-, SVG- & PDF-Rendering-Engines ---
 libpng1.6
 libjpeg-turbo
 libwebp
+tiff
+openjpeg2
+libexif
+exiv2
+libraw
+libimagequant
+lcms2
 freetype
+fribidi
 harfbuzz
+fontconfig
 cairo
 gdk-pixbuf
 pango1.0
-libdrm
-mesa
+librsvg
+qpdf
+poppler
 babl
 gegl
-sqlite3
-opus
-flac
-libvorbis
-lame
+
+# --- 6. Moderne Bild- & Video-Codecs (SIMD / NEON / DotProd) ---
 dav1d
+aom
+svt-av1
+libgav1
+libyuv
+jpeg-xl
+libavif
 libvpx
 x264
 x265
 libde265
 openh264
+libheif
+xvidcore
+mpeg2dec
+libtheora
+zimg
+libass
+libplacebo
+
+# --- 7. Audio-Codecs, DSP, FFT, Resampling & PipeWire-Stack (+rpt) ---
+libogg
+opus
+flac
+libvorbis
+lame
+mpg123
+faad2
+wavpack
+orc
+fftw3
+libsndfile
+libsamplerate
+libsoxr
+speexdsp
+webrtc-audio-processing
+alsa-lib
+pulseaudio
 pipewire
+wireplumber
+
+# --- 8. GStreamer-Stack (+rpt), Multimedia-Player, Toolkits & JS-Engine ---
+gstreamer1.0
+gst-plugins-base1.0
+gst-plugins-good1.0
+gst-plugins-bad1.0
+gst-plugins-ugly1.0
+gst-libav1.0
 ffmpeg
 mpv
 vlc
+gtk+3.0
+gtk4
+vte2.91
+mozjs128
 python3.13
 
-# Stufe 1: LMDE 7 / Cinnamon 6.8 & XApps Stack (werden stabil mit -O2 gebaut)
+# --- 9. Häufig genutzte Desktop-Programme & System-Tools ---
+ffmpegthumbnailer
+btop
+htop
+fastfetch
+imagemagick
+ghostscript
+gimp
+inkscape
+audacity
+
+# ==============================================================================
+# Stufe 1: LMDE 7 ("gigi") / Cinnamon & XApps Desktop-Stack
+# Werden stabil mit -march=armv8.2-a+crypto+fp16+dotprod -mtune=cortex-a76 -ftree-vectorize -O2 gebaut
+# ==============================================================================
 xapp
 cjs
 cinnamon-menus
