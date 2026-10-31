@@ -61,7 +61,11 @@ net.ipv4.tcp_congestion_control = bbr
 net.ipv4.tcp_fastopen = 3
 EOF
 
-# 5. Chromium Flags (Xorg & Wayland kompatibel via --ozone-platform-hint=auto)
+# 5. Standard-Webbrowser auf Firefox setzen & Chromium-Fallback-Flags vorbereiten
+on_chroot << 'EOF'
+update-alternatives --set x-www-browser /usr/bin/firefox || true
+update-alternatives --set gnome-www-browser /usr/bin/firefox || true
+EOF
 install -d -m 755 "${ROOTFS_DIR}/etc/chromium.d"
 echo 'export CHROMIUM_FLAGS="$CHROMIUM_FLAGS --enable-remote-extensions"' > "${ROOTFS_DIR}/etc/chromium.d/00-rpi-vars"
 cat << 'EOF' > "${ROOTFS_DIR}/etc/chromium.d/99-lmpe-pi5"

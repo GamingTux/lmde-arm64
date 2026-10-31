@@ -49,9 +49,8 @@ gldriver-test
 pkexec
 gnome-terminal
 libspa-0.2-bluetooth
-chromium
-chromium-l10n
-rpi-chromium-mods
+firefox
+rpi-firefox-mods
 libwidevinecdm0
 dkms
 device-tree-compiler

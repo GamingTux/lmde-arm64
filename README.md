@@ -165,7 +165,7 @@ dtparam=pciex1_gen=3
 <summary><b>How is video playback (YouTube / streaming) handled?</b></summary>
 The Broadcom BCM2712 (Raspberry Pi 5) only includes a dedicated hardware decoder block for HEVC/H.265 (rarely used on the modern web). For streaming standards such as H.264, VP9, and AV1, playback relies on CPU software decoding.
 
-This is where <b>LMPE's Cortex-A76 optimizations shine</b>: multimedia decoders such as <code>dav1d</code> (AV1), <code>libvpx</code> (VP9), and <code>ffmpeg</code> (H.264) are compiled with ARMv8.2-A NEON vectorization and <code>-O3</code>, delivering effortless, dropped-frame-free 1080p60 playback with low CPU overhead. Additionally, <code>rpi-chromium-mods</code> and Widevine DRM (<code>libwidevinecdm0</code>) are pre-installed for streaming platforms like Spotify and Netflix.
+This is where <b>LMPE's Cortex-A76 optimizations shine</b>: multimedia decoders such as <code>dav1d</code> (AV1), <code>libvpx</code> (VP9), and <code>ffmpeg</code> (H.264) are compiled with ARMv8.2-A NEON vectorization and <code>-O3</code>, delivering effortless, dropped-frame-free 1080p60 playback with low CPU overhead. Mozilla Firefox is pre-installed as the official Linux Mint default browser with <code>rpi-firefox-mods</code> and Widevine DRM (<code>libwidevinecdm0</code>) for streaming platforms like Spotify and Netflix.
 </details>
 
 <details>

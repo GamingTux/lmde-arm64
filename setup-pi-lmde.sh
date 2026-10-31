@@ -62,6 +62,8 @@ apt-get install -y \
   xreader \
   pix \
   xdg-desktop-portal-xapp \
+  firefox \
+  rpi-firefox-mods \
   ffmpegthumbnailer \
   btop \
   htop \
