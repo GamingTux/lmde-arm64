@@ -6,8 +6,9 @@ export DEB_BUILD_OPTIONS="nocheck parallel=$(nproc)"
 export DEB_BUILD_PROFILES="nocheck"
 
 # Basis-Architektur-Flags für den BCM2712 (Cortex-A76)
-BASE_FLAGS="-march=armv8.2-a+crypto+fp16+dotprod -mtune=cortex-a76 -flto=auto -ftree-vectorize"
-export DEB_LDFLAGS_MAINT_APPEND="-flto=auto"
+# -ffat-lto-objects stellt sicher, dass statische .a-Archive nach dh_strip ihre Symbole behalten
+BASE_FLAGS="-march=armv8.2-a+crypto+fp16+dotprod -mtune=cortex-a76 -flto=auto -ffat-lto-objects -ftree-vectorize"
+export DEB_LDFLAGS_MAINT_APPEND="-flto=auto -ffat-lto-objects"
 
 ROOT_DIR="$(pwd)"
 REPO_DIR="$ROOT_DIR/repo"
@@ -16,6 +17,20 @@ SUMMARY_FILE="${GITHUB_STEP_SUMMARY:-/tmp/github_step_summary.md}"
 
 mkdir -p "$REPO_DIR/pool/main" "$REPO_DIR/dists/gigi/main/binary-arm64"
 rm -f "$ROOT_DIR/.build_failed"
+
+# Falls zlib1g-dev oder liblz4-dev aus einem früheren Lauf ohne -ffat-lto-objects leere .a-Archive enthalten, zum Neubau entfernen
+for check_dev in "$REPO_DIR"/pool/main/zlib1g-dev_*.deb "$REPO_DIR"/pool/main/liblz4-dev_*.deb; do
+  [[ -f "$check_dev" ]] || continue
+  tmp_chk="$(mktemp -d)"
+  dpkg-deb -x "$check_dev" "$tmp_chk"
+  a_file="$(find "$tmp_chk" -name "*.a" | head -n 1)"
+  if [[ -n "$a_file" ]] && [[ "$(nm "$a_file" 2>/dev/null | grep -c ' T ' || true)" -eq 0 ]]; then
+    echo "🧹 Entferne altes Slim-LTO-Paket $(basename "$check_dev") für sauberen Neubau mit -ffat-lto-objects..."
+    rm -f "$REPO_DIR"/pool/main/zlib1g*.deb "$REPO_DIR"/pool/main/libminizip*.deb \
+          "$REPO_DIR"/pool/main/liblz4*.deb "$REPO_DIR"/pool/main/lz4_*.deb
+  fi
+  rm -rf "$tmp_chk"
+done
 
 TOTAL="$(grep -vE '^\s*(#|$)' "$ROOT_DIR/packages.txt" | wc -l | xargs)"
 CURRENT=0
@@ -260,7 +275,7 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
     echo "--------------------------------------------------------------------"
     echo "| $CURRENT/$TOTAL | \`$pkg\` | \`$TARGET_VER\` | \`$OPT_LEVEL\` | ❌ Fehler | ${DURATION}s |" >> "$SUMMARY_FILE"
     BUILD_FAILED=1
-    break
+    continue
   fi
 
   rm -f "$LOG_FILE"
