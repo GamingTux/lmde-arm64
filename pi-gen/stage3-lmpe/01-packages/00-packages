@@ -37,3 +37,7 @@ gldriver-test
 pkexec
 gnome-terminal
 libspa-0.2-bluetooth
+chromium
+chromium-l10n
+rpi-chromium-mods
+libwidevinecdm0
