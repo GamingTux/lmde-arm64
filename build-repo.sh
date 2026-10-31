@@ -42,7 +42,7 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
 
   # 1. Optimierungsstufe setzen (-O3 für Stufe 0, -O2 für Stufe 1)
   case "$pkg" in
-    pixman|zstd|libjpeg-turbo|dav1d|ffmpeg)
+    zlib|lz4|zstd|pixman|libpng1.6|libjpeg-turbo|libwebp|freetype|harfbuzz|sqlite3|dav1d|libvpx|x264|x265|libde265|openh264|ffmpeg)
       OPT_LEVEL="-O3"
       ;;
     *)

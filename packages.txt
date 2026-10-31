@@ -1,8 +1,20 @@
 # Stufe 0: Performance-Hotspots (werden mit -O3 gebaut)
-pixman
+zlib
+lz4
 zstd
+pixman
+libpng1.6
 libjpeg-turbo
+libwebp
+freetype
+harfbuzz
+sqlite3
 dav1d
+libvpx
+x264
+x265
+libde265
+openh264
 ffmpeg
 
 # Stufe 1: LMDE 7 / Cinnamon 6.8 & XApps Stack (werden stabil mit -O2 gebaut)
