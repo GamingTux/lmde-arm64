@@ -7,6 +7,9 @@ on:
         description: 'Release Tag (leer lassen für automatisches Datum vYYYY.MM.DD)'
         required: false
         default: ''
+  schedule:
+    # Automatisch jeden 1. des Monats um 06:00 UTC ein frisches Image bauen
+    - cron: '0 6 1 * *'
 
 permissions:
   contents: write
@@ -157,8 +160,8 @@ jobs:
             --title "LMPE \"Tatooine\" - Pi 5 & CM5 ARM64 Btrfs Image ($TAG)" \
             --notes-file release_body.md
 
-          # Alte Image-Releases automatisch bereinigen (immer nur die 2 neuesten behalten)
-          gh release list --limit 50 --json tagName --jq '.[2:][].tagName' | while read -r old_tag; do
+          # Alte Image-Releases automatisch bereinigen (immer nur die 3 neuesten behalten)
+          gh release list --limit 50 --json tagName --jq '.[3:][].tagName' | while read -r old_tag; do
             [[ -n "$old_tag" ]] || continue
             echo "🧹 Lösche altes Image-Release und Git-Tag: $old_tag"
             gh release delete "$old_tag" --cleanup-tag -y || true
