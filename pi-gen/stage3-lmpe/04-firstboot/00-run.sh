@@ -185,11 +185,11 @@ if [ "$NEW_USER" != "$FIRST_USER" ] && getent passwd "$FIRST_USER" >/dev/null; t
 fi
 echo "${NEW_USER}:${PASS1}" | chpasswd
 
-# --- 6. Hardware-Plattform (Argon ONE UP Laptop vs. Standard Raspberry Pi 5) ---
+# --- 6. Hardware-Plattform (Standard Pi vs. Argon ONE UP) ---
 HW_CHOICE=$(whiptail --title "LMPE First-Boot Setup (6/7) - Hardware-Plattform" \
-    --menu "Bitte wähle das passende Hardware-Profil für diesen Raspberry Pi:" 16 75 2 \
-    "generic" "Standard Raspberry Pi 5 (Standard-Takt & Standard-Lüfterkurve der Firmware)" \
-    "argon"   "Argon ONE UP CM5 Laptop (Installiert Treiber für Akku, Display, Deckel & Lüfter)" \
+    --menu "Bitte wähle das passende Hardware-Profil für dieses System:" 14 70 2 \
+    "generic" "Standard Raspberry Pi 5 / Compute Module 5" \
+    "argon"   "Argon ONE UP" \
     3>&1 1>&2 2>&3) || HW_CHOICE="generic"
 
 if [ "$HW_CHOICE" = "argon" ]; then
@@ -200,14 +200,14 @@ if [ "$HW_CHOICE" = "argon" ]; then
     if [ -x /usr/local/sbin/lmpe-config-hardware ]; then
         /usr/local/sbin/lmpe-config-hardware --argon || true
     fi
-    whiptail --title "Hardware-Profil" --msgbox "Argon ONE UP Laptop-Treiber & Einstellungen erfolgreich installiert!" 10 65
+    whiptail --title "Hardware-Profil" --msgbox "Argon ONE UP Profil erfolgreich aktiviert!" 10 55
 else
     # Bei Generic keine Pakete installieren und Staging-Verzeichnis leeren
     rm -rf /usr/share/argon-debs
     if [ -x /usr/local/sbin/lmpe-config-hardware ]; then
         /usr/local/sbin/lmpe-config-hardware --generic || true
     fi
-    whiptail --title "Hardware-Profil" --msgbox "Standard Raspberry Pi 5 Profil aktiv (Standard-Takt & Standard-Lüfterkurve)." 10 65
+    whiptail --title "Hardware-Profil" --msgbox "Standard Raspberry Pi 5 / Compute Module 5 Profil aktiv." 10 65
 fi
 
 # --- 7. Standard-Sitzung (X11 vs. Wayland) ---

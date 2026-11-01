@@ -17,7 +17,7 @@ apply_argon_profile() {
 
     cat << 'EOF' >> "$CONFIG_TXT"
 
-# --- LMPE Hardware-Profil: Argon ONE UP CM5 Laptop ---
+# --- LMPE Hardware-Profil: Argon ONE UP ---
 dtoverlay=dwc2,dr_mode=host
 dtoverlay=argon-oneup-battery
 dtoverlay=argon-oneup-lid
@@ -100,7 +100,7 @@ EOF
 }
 
 apply_generic_profile() {
-    echo "=== Aktiviere Standard Raspberry Pi 5 Hardware-Profil ==="
+    echo "=== Aktiviere Standard Raspberry Pi 5 / Compute Module 5 Hardware-Profil ==="
 
     # 1. config.txt: Entferne alle Profil-spezifischen Blöcke (Standard-Firmware-Takt & Standard-Lüfterkurve)
     sed -i '/# --- LMPE Hardware-Profil: /,$d' "$CONFIG_TXT" 2>/dev/null || true
@@ -130,7 +130,7 @@ apply_generic_profile() {
     systemctl daemon-reload 2>/dev/null || true
 
     echo "generic" > "$PROFILE_FILE"
-    echo "✓ Standard Raspberry Pi 5 Profil erfolgreich angewendet."
+    echo "✓ Standard Raspberry Pi 5 / Compute Module 5 Profil erfolgreich angewendet."
 }
 
 show_status() {
@@ -157,8 +157,8 @@ case "${1:-}" in
         ;;
     *)
         echo "Verwendung: lmpe-config-hardware {--argon|--generic|--status}"
-        echo "  --argon     Aktiviert das Argon ONE UP CM5 Laptop Profil"
-        echo "  --generic   Aktiviert das Standard Raspberry Pi 5 Profil"
+        echo "  --argon     Aktiviert das Argon ONE UP Profil"
+        echo "  --generic   Aktiviert das Standard Raspberry Pi 5 / Compute Module 5 Profil"
         echo "  --status    Zeigt das aktuell aktive Profil an"
         exit 1
         ;;
