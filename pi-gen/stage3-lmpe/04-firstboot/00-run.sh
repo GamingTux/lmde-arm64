@@ -1,6 +1,14 @@
 #!/bin/bash -e
 
-install -d -m 755 "${ROOTFS_DIR}/usr/local/sbin" "${ROOTFS_DIR}/etc/systemd/system"
+install -d -m 755 "${ROOTFS_DIR}/usr/local/sbin" "${ROOTFS_DIR}/etc/systemd/system" "${ROOTFS_DIR}/etc/systemd/journald.conf.d"
+
+# Persistente systemd-Logs aktivieren, damit Fehler bei Neustarts nicht im RAM verloren gehen
+cat << 'JCONF' > "${ROOTFS_DIR}/etc/systemd/journald.conf.d/00-persistent.conf"
+[Journal]
+Storage=persistent
+SystemMaxUse=200M
+JCONF
+install -d -m 2755 "${ROOTFS_DIR}/var/log/journal"
 
 cat << 'EOF' > "${ROOTFS_DIR}/usr/local/sbin/lmpe-firstboot.sh"
 #!/bin/bash
@@ -21,11 +29,8 @@ textbox=black,lightgray
 entry=black,white
 '
 
-# Plymouth für das interaktive First-Boot-Menü beenden und auf sauberes Terminal (tty8) umschalten
+# Plymouth für das interaktive First-Boot-Menü beenden
 /usr/bin/plymouth quit 2>/dev/null || true
-if [ -t 0 ]; then
-    chvt 8 || true
-fi
 clear
 
 # --- 1. Tastaturlayout ---
@@ -42,11 +47,13 @@ KB_LAYOUT=$(whiptail --title "LMPE First-Boot Setup (1/6) - Tastaturlayout" \
 
 if [ "$KB_LAYOUT" = "de-nodeadkeys" ]; then
     sed -i 's/^XKBLAYOUT=.*/XKBLAYOUT="de"/; s/^XKBVARIANT=.*/XKBVARIANT="nodeadkeys"/' /etc/default/keyboard
-    setupcon -k --force 2>/dev/null || true
 else
     raspi-config nonint do_change_keyboard "$KB_LAYOUT" 2>/dev/null || true
-    setupcon -k --force 2>/dev/null || true
 fi
+setupcon -k --force /dev/tty1 2>/dev/null || true
+
+whiptail --title "LMPE First-Boot Setup (1/6) - Tastatur-Test" \
+    --inputbox "Tastaturlayout wurde gesetzt. Du kannst hier kurz testen (z.B. Z, Y, @, ?, -, _):\n(Danach 'OK' wählen oder Enter drücken)" 12 70 "" 3>&1 1>&2 2>&3 || true
 
 # --- 2. Systemsprache & Zeitzone ---
 LOCALE_CHOICE=$(whiptail --title "LMPE First-Boot Setup (2/6) - Sprache & Zeitzone" \
@@ -102,18 +109,36 @@ if whiptail --title "LMPE First-Boot Setup (4/6) - WLAN" \
             "${WIFI_LIST[@]}" \
             3>&1 1>&2 2>&3) || break
 
-        WIFI_PASS=$(whiptail --title "WLAN-Passwort" \
-            --passwordbox "Bitte Passwort für '$SSID' eingeben (leer lassen bei offenem WLAN):" 12 70 \
-            3>&1 1>&2 2>&3) || continue
+        PASS_MODE=$(whiptail --title "LMPE First-Boot Setup (4/6) - Passworteingabe" \
+            --menu "Wie möchtest du das WLAN-Passwort für '$SSID' eingeben?" 13 65 2 \
+            "visible" "Im Klartext anzeigen (Empfohlen, um Tippfehler zu vermeiden)" \
+            "hidden"  "Verdeckt eingeben (mit Sternchen *)" \
+            3>&1 1>&2 2>&3) || PASS_MODE="visible"
+
+        if [ "$PASS_MODE" = "visible" ]; then
+            WIFI_PASS=$(whiptail --title "WLAN-Passwort für '$SSID'" \
+                --inputbox "Bitte Passwort für '$SSID' eingeben (leer lassen bei offenem WLAN):" 12 70 \
+                3>&1 1>&2 2>&3) || continue
+        else
+            WIFI_PASS=$(whiptail --title "WLAN-Passwort für '$SSID'" \
+                --passwordbox "Bitte Passwort für '$SSID' eingeben (leer lassen bei offenem WLAN):" 12 70 \
+                3>&1 1>&2 2>&3) || continue
+        fi
 
         whiptail --title "WLAN" --infobox "Verbinde mit '$SSID'..." 8 55
         if [ -n "$WIFI_PASS" ]; then
-            nmcli device wifi connect "$SSID" password "$WIFI_PASS" >/dev/null 2>&1 && break
+            CONNECT_OUT=$(nmcli device wifi connect "$SSID" password "$WIFI_PASS" 2>&1)
+            RES=$?
         else
-            nmcli device wifi connect "$SSID" >/dev/null 2>&1 && break
+            CONNECT_OUT=$(nmcli device wifi connect "$SSID" 2>&1)
+            RES=$?
         fi
-        if ! whiptail --title "Verbindung fehlgeschlagen" --yesno "Verbindung mit '$SSID' fehlgeschlagen. Erneut versuchen?" 10 65; then
+
+        if [ $RES -eq 0 ]; then
+            whiptail --title "WLAN verbunden" --msgbox "Erfolgreich mit '$SSID' verbunden!" 10 60
             break
+        else
+            whiptail --title "Verbindung fehlgeschlagen" --yesno "Verbindung fehlgeschlagen:\n\n$CONNECT_OUT\n\nErneut versuchen?" 15 70 || break
         fi
     done
 fi
@@ -181,10 +206,6 @@ localectl set-x11-keymap "${KB_LAYOUT%%-*}" pc105 "${KB_LAYOUT#*-}" 2>/dev/null 
 # First-Boot-Service deaktivieren, damit er nur beim allerersten Start läuft
 systemctl disable lmpe-firstboot.service 2>/dev/null || true
 sync
-
-if [ -t 0 ]; then
-    chvt 1 || true
-fi
 exit 0
 EOF
 chmod 755 "${ROOTFS_DIR}/usr/local/sbin/lmpe-firstboot.sh"
@@ -202,7 +223,7 @@ ExecStart=/usr/local/sbin/lmpe-firstboot.sh
 StandardInput=tty
 StandardOutput=tty
 StandardError=tty
-TTYPath=/dev/tty8
+TTYPath=/dev/tty1
 TTYReset=yes
 TTYVHangup=yes
 TTYVTDisallocate=yes
@@ -215,5 +236,6 @@ EOF
 on_chroot <<- \EOF
 	apt-get purge -y cloud-init rpi-cloud-init-mods rpi-connect-lite rpi-keyboard-config rpi-keyboard-fw-update rpi-usb-gadget rpicam-apps-lite rpi-update libpam-chksshpwd userconf-pi 2>/dev/null || true
 	apt-get autoremove -y --purge 2>/dev/null || true
+	chown root:systemd-journal /var/log/journal 2>/dev/null || true
 	systemctl enable lmpe-firstboot.service
 EOF

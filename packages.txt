@@ -146,7 +146,6 @@ vlc
 gtk+3.0
 gtk4
 vte2.91
-mozjs128
 python3.13
 
 # --- 9. Häufig genutzte Desktop-Programme & System-Tools ---

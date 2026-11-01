@@ -243,7 +243,7 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
       export DEB_CXXFLAGS_MAINT_APPEND="$ARCH_FLAGS $OPT_LEVEL -Wno-error=array-bounds"
       export DEB_LDFLAGS_MAINT_APPEND=""
       ;;
-    xz-utils|tar|re2|gmp|libxcrypt|nettle|gnutls28|openssl|jemalloc|highway|icu|glib2.0|mesa|xwayland|librsvg|poppler|aom|svt-av1|jpeg-xl|libplacebo|alsa-lib|pulseaudio|pipewire|wireplumber|gstreamer1.0|gst-plugins-base1.0|gst-plugins-good1.0|gst-plugins-bad1.0|gst-plugins-ugly1.0|gst-libav1.0|ffmpeg|mpv|vlc|gtk+3.0|gtk4|mozjs128|python3.13|btop|imagemagick|ghostscript|gimp|inkscape|audacity)
+    xz-utils|tar|re2|gmp|libxcrypt|nettle|gnutls28|openssl|jemalloc|highway|icu|glib2.0|mesa|xwayland|librsvg|poppler|aom|svt-av1|jpeg-xl|libplacebo|alsa-lib|pulseaudio|pipewire|wireplumber|gstreamer1.0|gst-plugins-base1.0|gst-plugins-good1.0|gst-plugins-bad1.0|gst-plugins-ugly1.0|gst-libav1.0|ffmpeg|mpv|vlc|gtk+3.0|gtk4|python3.13|btop|imagemagick|ghostscript|gimp|inkscape|audacity)
       USE_LTO=0
       export DEB_CFLAGS_MAINT_APPEND="$ARCH_FLAGS $OPT_LEVEL"
       export DEB_CXXFLAGS_MAINT_APPEND="$ARCH_FLAGS $OPT_LEVEL"
