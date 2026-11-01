@@ -197,16 +197,10 @@ if [ "$HW_CHOICE" = "argon" ]; then
     if compgen -G "/usr/share/argon-debs/*.deb" >/dev/null; then
         dpkg -i --force-confnew /usr/share/argon-debs/*.deb 2>/dev/null || apt-get install -fy 2>/dev/null || true
     fi
-    if [ -x /usr/local/sbin/lmpe-config-hardware ]; then
-        /usr/local/sbin/lmpe-config-hardware --argon || true
-    fi
     whiptail --title "Hardware-Profil" --msgbox "Argon ONE UP Profil erfolgreich aktiviert!" 10 55
 else
     # Bei Generic keine Pakete installieren und Staging-Verzeichnis leeren
     rm -rf /usr/share/argon-debs
-    if [ -x /usr/local/sbin/lmpe-config-hardware ]; then
-        /usr/local/sbin/lmpe-config-hardware --generic || true
-    fi
     whiptail --title "Hardware-Profil" --msgbox "Standard Raspberry Pi 5 / Compute Module 5 Profil aktiv." 10 65
 fi
 

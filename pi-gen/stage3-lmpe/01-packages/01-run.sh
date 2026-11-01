@@ -88,14 +88,11 @@ cat << 'EOF' > "${ROOTFS_DIR}/etc/chromium.d/99-lmpe-pi5"
 export CHROMIUM_FLAGS="$CHROMIUM_FLAGS --ozone-platform-hint=auto --enable-gpu-rasterization --enable-oop-rasterization --enable-zero-copy --ignore-gpu-blocklist"
 EOF
 
-# 6. WLAN-Powersave deaktivieren & ungenutzten CM5-Ethernet-Port (eth0) ignorieren/abschalten
+# 6. WLAN-Powersave deaktivieren
 install -d -m 755 "${ROOTFS_DIR}/etc/NetworkManager/conf.d"
 cat << 'EOF' > "${ROOTFS_DIR}/etc/NetworkManager/conf.d/99-lmpe-wifi-powersave-off.conf"
 [connection]
 wifi.powersave = 2
-
-[keyfile]
-unmanaged-devices=interface-name:eth0
 EOF
 
 cat << 'EOF' > "${ROOTFS_DIR}/usr/sbin/lmpe-runtime-tune"
@@ -117,15 +114,6 @@ for irq_dir in /proc/irq/[0-9]*; do
     done
 done
 
-# Put unpopulated CM5 Gigabit Ethernet PHY (BCM54213PE) into power-down when no link is present
-if [ -d /sys/class/net/eth0 ]; then
-    ETH_DRV=$(basename "$(readlink -f /sys/class/net/eth0/device/driver 2>/dev/null)" 2>/dev/null || true)
-    ETH_CARRIER=$(cat /sys/class/net/eth0/carrier 2>/dev/null || echo 0)
-    if [ "$ETH_DRV" = "macb" ] && [ "$ETH_CARRIER" != "1" ] && ! /sbin/ip -4 addr show dev eth0 2>/dev/null | grep -q "inet "; then
-        /sbin/ip link set dev eth0 down 2>/dev/null || true
-    fi
-fi
-
 # Enable 4-Core Receive Packet Steering (RPS/RFS) on active network interfaces
 for rx_dir in /sys/class/net/wlan*/queues/rx-0 /sys/class/net/eth*/queues/rx-0; do
     [ -d "$rx_dir" ] || continue
@@ -135,7 +123,7 @@ done
 EOF
 chmod 755 "${ROOTFS_DIR}/usr/sbin/lmpe-runtime-tune"
 
-cat << 'EOF' > "${ROOTFS_DIR}/etc/udev/rules.d/90-lmpe-argon-runtime.rules"
+cat << 'EOF' > "${ROOTFS_DIR}/etc/udev/rules.d/90-lmpe-runtime.rules"
 # Optimal I/O Scheduler, Read-Ahead & Core Queue Affinity for NVMe SSDs and eMMC/SD/USB storage
 ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="disk", KERNEL=="nvme[0-9]*n[0-9]*", ATTR{queue/scheduler}="none", ATTR{queue/read_ahead_kb}="512", ATTR{queue/rq_affinity}="2"
 ACTION=="add|change", KERNEL=="mmcblk[0-9]*|sd[a-z]", ATTR{queue/scheduler}="mq-deadline", ATTR{queue/read_ahead_kb}="256", ATTR{queue/rq_affinity}="2"
@@ -143,8 +131,7 @@ ACTION=="add|change", KERNEL=="mmcblk[0-9]*|sd[a-z]", ATTR{queue/scheduler}="mq-
 # 4-Core Receive Packet Steering (RPS/RFS) on network interfaces
 ACTION=="add", SUBSYSTEM=="net", KERNEL=="wlan*|eth*", ATTR{queues/rx-0/rps_cpus}="f", ATTR{queues/rx-0/rps_flow_cnt}="4096"
 
-# Runtime IRQ & Ethernet tuning
-ACTION=="add", SUBSYSTEM=="net", KERNEL=="eth0", DRIVERS=="macb", RUN+="/usr/sbin/lmpe-runtime-tune"
+# Runtime IRQ tuning on DRM init
 ACTION=="add", SUBSYSTEM=="drm", KERNEL=="card0", RUN+="/usr/sbin/lmpe-runtime-tune"
 EOF
 
@@ -180,23 +167,7 @@ EOF
 rm -f "${ROOTFS_DIR}/etc/resolv.conf"
 cp /etc/resolv.conf "${ROOTFS_DIR}/etc/resolv.conf"
 
-# 10. Hardware-Profil-Manager & Argon-Unterstützungstools installieren
-install -d -m 755 "${ROOTFS_DIR}/usr/local/sbin" "${ROOTFS_DIR}/usr/local/bin"
-install -m 755 files/sbin/lmpe-config-hardware "${ROOTFS_DIR}/usr/local/sbin/lmpe-config-hardware"
-ln -sf /usr/local/sbin/lmpe-config-hardware "${ROOTFS_DIR}/usr/local/bin/lmpe-config-hardware"
-echo "generic" > "${ROOTFS_DIR}/etc/lmpe-hardware-profile"
-
-install -m 755 files/sbin/argononeup-eepromconfig.py "${ROOTFS_DIR}/usr/sbin/argononeup-eepromconfig.py"
-install -m 755 files/bin/argon-oneup-irq-policy "${ROOTFS_DIR}/usr/bin/argon-oneup-irq-policy"
-install -m 755 files/bin/argon-brightness-step "${ROOTFS_DIR}/usr/bin/argon-brightness-step"
-
-install -d -m 755 "${ROOTFS_DIR}/etc/xdg/ddcutil"
-cat << 'EOF' > "${ROOTFS_DIR}/etc/xdg/ddcutil/ddcutilrc"
-[global]
-options: --disable-dynamic-sleep --sleep-multiplier 0.1 --disable-heuristic-unsupported
-EOF
-
-# 12. Eigenes LMPE Plymouth Boot-Theme installieren & nahtlosen Übergang zu LightDM konfigurieren
+# 10. Eigenes LMPE Plymouth Boot-Theme installieren & nahtlosen Übergang zu LightDM konfigurieren
 install -d -m 755 "${ROOTFS_DIR}/usr/share/plymouth/themes/lmpe"
 cp -a files/plymouth/lmpe/* "${ROOTFS_DIR}/usr/share/plymouth/themes/lmpe/"
 
@@ -236,11 +207,8 @@ on_chroot <<- \EOF
 	SWAPCONF
 	rm -f /var/swap
 
-	# argon-backlight udev-entkoppeln
-	sed -i '/Before=display-manager.service/d' /etc/systemd/system/argon-backlight.service 2>/dev/null || true
-
 	systemctl enable lightdm irqbalance.service systemd-resolved.service fstrim.timer bluetooth.service || true
-	systemctl disable glamor-test.service rp1-test.service e2scrub_reap.service e2scrub_all.timer rpi-eeprom-update.service argon-backlight.service argon-eeprom-psu.service ModemManager.service nfs-blkmap.service rpc-statd-notify.service 2>/dev/null || true
+	systemctl disable glamor-test.service rp1-test.service e2scrub_reap.service e2scrub_all.timer rpi-eeprom-update.service ModemManager.service nfs-blkmap.service rpc-statd-notify.service 2>/dev/null || true
 	systemctl mask NetworkManager-wait-online.service rpcbind.service rpcbind.socket serial-getty@ttyAMA10.service 2>/dev/null || true
 	systemctl set-default graphical.target
 EOF

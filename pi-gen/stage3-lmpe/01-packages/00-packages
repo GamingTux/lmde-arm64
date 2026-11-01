@@ -53,8 +53,16 @@ firefox
 rpi-firefox-mods
 libwidevinecdm0
 dkms
+build-essential
+linux-headers-rpi-2712
+linux-image-rpi-v8
+linux-headers-rpi-v8
 device-tree-compiler
 i2c-tools
+lm-sensors
+iw
+python3-dbus
+python3-gi
 ddcutil
 irqbalance
 systemd-resolved
