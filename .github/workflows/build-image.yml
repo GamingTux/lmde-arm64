@@ -121,14 +121,22 @@ jobs:
 
           IMG_XZ="$(ls -1 *.img.xz | head -n 1)"
           {
-            echo "## 🍓 LMPE ARM64 (LMDE 7 'gigi' / Cinnamon) Image für Raspberry Pi 5 & Argon ONE UP CM5"
+            echo "## 🍓 LMPE ARM64 (LMDE 7 / Cinnamon) Image für Raspberry Pi 5 & Compute Module 5"
+            echo "### 🌌 Codename: **Tatooine** ☀️☀️"
             echo ""
-            echo "- **Basis:** Raspberry Pi OS Lite 64-Bit (Debian 13 Trixie) + `lmde-arm64` (`-O3`/`-O2` Cortex-A76)"
-            echo "- **Root-Dateisystem:** \`Btrfs\` (\`defaults,compress=zstd:2,noatime,nodiratime,ssd,discard=async\`)"
-            echo "- **Boot-Partition:** \`FAT32\` mit vorkonfigurierter \`config.txt\` (PCIe Gen3 NVMe, 2.8 GHz Pi 5 Profil, Argon ONE UP Overlays & Lüfterkurve)"
-            echo "- **Desktop:** Cinnamon 6.6 + Muffin + Nemo + XApps + LightDM (`slick-greeter`)"
+            echo "> **Wo jede große Reise beginnt...**  "
+            echo "> Angelehnt an die Upstream-Basis Debian 13 (**T**rixie) ist **Tatooine** der offizielle Codename für diese LMPE-Generation. Wie der legendäre Wüstenplanet unter den Zwillingssonnen markiert *Tatooine* den universellen Ausgangspunkt für alle Raspberry Pi 5 & Compute Module 5 Systeme – robust, universell und ab Werk mit kompletter Linux Mint Desktop-Suite ausgestattet."
             echo ""
-            echo "### SHA256 Checksumme"
+            echo "### ✨ Highlights dieses Releases"
+            echo "- **Volle Linux Mint Desktop-Suite:** Timeshift, MintWelcome, MintStick, MintReport, MintBackup, MintLocale, Bulky, Folder-Color-Switcher, Sticky, Thingy, Hypnotix, Celluloid & Drawing"
+            echo "- **System- & Audiowerkzeuge:** GParted, Baobab, Pavucontrol, Seahorse"
+            echo "- **Btrfs Root-Dateisystem:** \`defaults,compress=zstd:2,noatime,nodiratime,ssd,discard=async\`, automatischer Online-Resize beim ersten Start & \`/tmp\` im RAM"
+            echo "- **Universelle Hardware-Architektur:** Automatische Erkennung für CM5 (DWC2 USB 2.0 Host-Modus für interne Tastatur, Touchpad, Audio & Webcam) bei vollem Standard-Support für Pi 5 Desktop-Boards"
+            echo "- **Interaktiver First-Boot-Assistent:** Sprach-, Tastatur-, Hostname-, WLAN- und optionale Argon ONE UP Hardware-Treiber-Auswahl"
+            echo "- **Optimierte Paketverwaltung:** Konsolidierte \`/etc/apt/apt.conf.d/99-lmpe.conf\` mit Host-Queues, Pipelining und 3 Retries"
+            echo "- **Desktop-Performance:** Cinnamon 6.x mit voller VideoCore VII GPU-Beschleunigung (Mesa 26.2.2 / Glamor) und Cortex-A76 optimiertem Multimedia-Stack"
+            echo ""
+            echo "### 🔐 SHA256 Checksumme"
             echo "\`\`\`text"
             cat SHA256SUMS.txt
             echo "\`\`\`"
@@ -138,7 +146,7 @@ jobs:
             "$IMG_XZ" \
             SHA256SUMS.txt \
             *.info \
-            --title "LMPE Pi 5 / CM5 ARM64 Btrfs Image ($TAG)" \
+            --title "LMPE \"Tatooine\" - Pi 5 & CM5 ARM64 Btrfs Image ($TAG)" \
             --notes-file release_body.md
 
           # Alte Image-Releases automatisch bereinigen (immer nur die 2 neuesten behalten)

@@ -34,17 +34,30 @@ The official Linux Mint distribution is beloved for its elegance, stability, and
 
 ---
 
+## 🌌 Galactic Codenames: The Star Wars Release Cycle
+
+Just as Debian names its releases after *Toy Story* characters and Ubuntu after animals, **LMPE names its major releases after iconic planets from the Star Wars galaxy**.
+
+### Current Release: **LMPE "Tatooine"** ☀️☀️
+> *"The journey begins where two suns rise..."*
+
+* **The Upstream Heritage:** In tribute to our upstream Debian 13 (**T**rixie) base, our foundational release cycle begins with the letter **T**.
+* **Where the Saga Begins:** In the Star Wars universe, Tatooine is the iconic starting point where legends are born. For LMPE, *Tatooine* marks our first official universal release: resilient, dependable, and ready for exploration across all Raspberry Pi 5 and Compute Module 5 platforms.
+* **100% Universal Architecture:** Built without proprietary lock-in. Whether running on a bare Raspberry Pi 5 desktop board, an industrial carrier board, or an Argon ONE UP laptop, LMPE adapts automatically via an interactive first-boot hardware wizard and modular overlays.
+
+---
+
 ## 🚀 Key Features
 
-* **🍃 Complete Linux Mint Cinnamon Desktop:** Cinnamon 6.x desktop, Muffin compositing window manager, Nemo file manager, Slick Greeter, XApps suite (*Xed, Xviewer, Xreader, Pix*), Mint Software Manager (`mintinstall`), MintUpdate, and official Mint themes and icon packs.
+* **🍃 Complete Linux Mint Cinnamon Desktop & XApps:** Full Cinnamon 6.x desktop environment, Muffin compositing window manager, Nemo file manager, Slick Greeter, Timeshift (system snapshots), MintWelcome, MintStick (USB formatter & image writer), MintReport, MintBackup, MintLocale, Bulky (batch renamer), Folder Color Switcher, Sticky Notes, Thingy, Hypnotix (IPTV), Celluloid (hardware-accelerated media player), Drawing, GParted, Baobab, and official Mint-Y themes.
 * **⚡ Broadcom BCM2712 (Cortex-A76) Tuning:** Core libraries and performance hotspots compiled with:
   ```text
   -march=armv8.2-a+crypto+fp16+dotprod -mtune=cortex-a76 -ftree-vectorize -flto=auto
   ```
-* **🗄️ Resilient Btrfs Root Filesystem:** Transparent `zstd:2` compression saves up to 40% disk space, doubles NVMe/SD random read throughput, and significantly extends flash storage endurance.
+* **🗄️ Resilient Btrfs Root Filesystem:** Transparent `zstd:2` compression saves up to 40% disk space, doubles NVMe/SD random read throughput, and significantly extends flash storage endurance. Automatic first-boot filesystem expansion (`lmpe-btrfs-resize`) and RAM-backed `/tmp`.
 * **🚀 High-Throughput PCIe Gen3 NVMe & Fast Boot:** Pre-configured PCIe Gen3 transfer modes (`pciex1_gen=3`), optimized NVMe/SD I/O schedulers, and rapid system boot.
 * **🎨 OEM Minimal Dark Boot Splash:** Resolution-independent Plymouth bootscreen (`quiet splash`) with custom mint-raspberry emblem and boot spinner.
-* **🌐 Modern Networking & I/O Tuning:** Google TCP BBR congestion control, 4-core Receive Packet Steering (RPS), irqbalance GICv2 Level-IRQ core spreading, and NVMe PCIe Gen3 profiles.
+* **🌐 Modern Networking & APT Tuning:** Consolidated `/etc/apt/apt.conf.d/99-lmpe.conf` with host queuing, HTTP pipelining, and 3 automatic retries; Google TCP BBR congestion control, 4-core Receive Packet Steering (RPS), and irqbalance core spreading.
 * **📦 Automated GitHub Actions Pipeline:** Weekly automated builds check upstream Debian and Linux Mint repositories, build delta packages, sign the repository with GPG, and deploy to GitHub Pages.
 
 ---
