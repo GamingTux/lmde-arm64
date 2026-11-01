@@ -104,3 +104,9 @@ gir1.2-packagekitglib-1.0
 blueman
 bluez
 bluez-tools
+cinnamon-l10n
+network-manager-gnome
+pipewire-audio
+fonts-dejavu-core
+fonts-noto-core
+fonts-liberation

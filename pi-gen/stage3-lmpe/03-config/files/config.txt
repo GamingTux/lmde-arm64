@@ -22,4 +22,8 @@ auto_initramfs=1
 dtoverlay=dwc2,dr_mode=host
 usb_max_current_enable=1
 
+# --- Raspberry Pi 5 & CM5 PCIe Gen 3 (NVMe SSDs & M.2 Hats) ---
+[pi5]
+dtparam=pciex1_gen=3
+
 [all]

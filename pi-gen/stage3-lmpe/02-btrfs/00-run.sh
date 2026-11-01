@@ -31,6 +31,7 @@ cat << 'EOF' > "${ROOTFS_DIR}/usr/local/sbin/lmpe-btrfs-resize.sh"
 #!/bin/bash
 set -e
 ROOT_PART="$(findmnt -n -o SOURCE /)"
+ROOT_PART="${ROOT_PART%%\[*}"
 if [[ "$ROOT_PART" =~ ^/dev/(mmcblk[0-9]+|nvme[0-9]+n[0-9]+)p([0-9]+)$ ]]; then
 	DISK="${BASH_REMATCH[1]}"
 	PART="${BASH_REMATCH[2]}"

@@ -49,6 +49,7 @@ echo 'KERNEL=="cpu*", SUBSYSTEM=="cpu", ATTR{cpufreq/scaling_governor}="scheduti
 # 4. Kernel-VM, Btrfs-Cache & TCP BBR Tuning
 install -d -m 755 "${ROOTFS_DIR}/etc/modules-load.d"
 echo "tcp_bbr" > "${ROOTFS_DIR}/etc/modules-load.d/bbr.conf"
+echo "i2c-dev" > "${ROOTFS_DIR}/etc/modules-load.d/i2c-dev.conf"
 
 install -d -m 755 "${ROOTFS_DIR}/etc/sysctl.d"
 cat << 'EOF' > "${ROOTFS_DIR}/etc/sysctl.d/99-lmpe-pi5.conf"
@@ -150,7 +151,7 @@ EOF
 done
 
 # 8. Bluetooth beim Booten automatisch aktivieren
-chmod 555 "${ROOTFS_DIR}/etc/bluetooth" 2>/dev/null || true
+chmod 755 "${ROOTFS_DIR}/etc/bluetooth" 2>/dev/null || true
 if grep -q "AutoEnable" "${ROOTFS_DIR}/etc/bluetooth/main.conf" 2>/dev/null; then
     sed -i "s/^#*AutoEnable.*/AutoEnable = true/" "${ROOTFS_DIR}/etc/bluetooth/main.conf"
 elif [ -f "${ROOTFS_DIR}/etc/bluetooth/main.conf" ]; then

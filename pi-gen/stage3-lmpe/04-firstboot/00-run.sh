@@ -109,6 +109,8 @@ case "$LOCALE_CHOICE" in
 esac
 
 raspi-config nonint do_change_locale "$LOCALE_CHOICE" 2>/dev/null || true
+grep -q "^en_US.UTF-8 UTF-8" /etc/locale.gen 2>/dev/null || echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
+locale-gen 2>/dev/null || true
 raspi-config nonint do_change_timezone "$TZ_CHOICE" 2>/dev/null || true
 raspi-config nonint do_wifi_country "$WIFI_CC" 2>/dev/null || true
 rfkill unblock wifi 2>/dev/null || true
@@ -121,6 +123,8 @@ while true; do
         3>&1 1>&2 2>&3) || NEW_HOST="${CURRENT_HOST:-lmpe-pi5}"
     if echo "$NEW_HOST" | grep -Eq '^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]$'; then
         raspi-config nonint do_hostname "$NEW_HOST" 2>/dev/null || hostnamectl set-hostname "$NEW_HOST" 2>/dev/null || true
+        echo "$NEW_HOST" > /etc/hostname
+        sed -i "s/127\.0\.1\.1.*/127.0.1.1\t$NEW_HOST/" /etc/hosts 2>/dev/null || true
         break
     else
         whiptail --title "Invalid Hostname" --msgbox "The hostname may only contain letters, numbers, and hyphens." 10 65
@@ -219,6 +223,9 @@ if [ "$NEW_USER" != "$FIRST_USER" ] && getent passwd "$FIRST_USER" >/dev/null; t
     fi
 fi
 echo "${NEW_USER}:${PASS1}" | chpasswd
+for grp in sudo adm dialout cdrom audio users video plugdev input netdev render i2c; do
+    usermod -aG "$grp" "$NEW_USER" 2>/dev/null || true
+done
 
 AUTOLOGIN="no"
 if whiptail --title "LMPE First-Boot Setup (5/7) - Automatic Login" \
