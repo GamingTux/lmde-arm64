@@ -30,7 +30,7 @@ The official Linux Mint distribution is beloved for its elegance, stability, and
 1. **Ready-to-Flash Bootable OS Images** with a modern **Btrfs** root filesystem (transparent Zstandard compression).
 2. **Dedicated GPG-Signed APT Repository** containing over **160+ packages** recompiled with Cortex-A76 SIMD vectorization and Link-Time Optimization (`-flto=auto`).
 3. **Full Raspberry Pi 5 Hardware Acceleration** with VideoCore VII GPU drivers (Mesa OpenGL & Vulkan) and official Raspberry Pi 64-bit kernel integration (`linux-image-rpi-2712`).
-4. **Out-of-the-Box PCIe Gen3 NVMe & High-Throughput I/O** pre-configured for lightning-fast desktop responsiveness.
+4. **High-Throughput Storage & I/O Tuning** with optimized NVMe/SD multi-queue schedulers and Btrfs asynchronous TRIM.
 
 ---
 
@@ -55,7 +55,7 @@ Just as Debian names its releases after *Toy Story* characters and Ubuntu after 
   -march=armv8.2-a+crypto+fp16+dotprod -mtune=cortex-a76 -ftree-vectorize -flto=auto
   ```
 * **🗄️ Resilient Btrfs Root Filesystem:** Transparent `zstd:2` compression saves up to 40% disk space, doubles NVMe/SD random read throughput, and significantly extends flash storage endurance. Automatic first-boot filesystem expansion (`lmpe-btrfs-resize`) and RAM-backed `/tmp`.
-* **🚀 High-Throughput PCIe Gen3 NVMe & Fast Boot:** Pre-configured PCIe Gen3 transfer modes (`pciex1_gen=3`), optimized NVMe/SD I/O schedulers, and rapid system boot.
+* **🚀 Optimized Storage I/O & Rapid Boot:** Pre-configured I/O schedulers (`none` for NVMe, `mq-deadline` for SD/eMMC), fast background TRIM (`discard=async`), and streamlined boot pipeline.
 * **🎨 OEM Minimal Dark Boot Splash:** Resolution-independent Plymouth bootscreen (`quiet splash`) with custom mint-raspberry emblem and boot spinner.
 * **🌐 Modern Networking & APT Tuning:** Consolidated `/etc/apt/apt.conf.d/99-lmpe.conf` with host queuing, HTTP pipelining, and 3 automatic retries; Google TCP BBR congestion control, 4-core Receive Packet Steering (RPS), and irqbalance core spreading.
 * **📦 Automated GitHub Actions Pipeline:** Weekly automated builds check upstream Debian and Linux Mint repositories, build delta packages, sign the repository with GPG, and deploy to GitHub Pages.
@@ -140,7 +140,7 @@ Pin-Priority: 700
 
 | Device | Status | Notes |
 | :--- | :---: | :--- |
-| **Raspberry Pi 5 (4GB / 8GB / 16GB)** | ✅ Full Support | Broadcom BCM2712 Cortex-A76, VideoCore VII OpenGL 3.1 / Vulkan 1.3, PCIe Gen3 NVMe, 4K60 dual HDMI. |
+| **Raspberry Pi 5 (4GB / 8GB / 16GB)** | ✅ Full Support | Broadcom BCM2712 Cortex-A76, VideoCore VII OpenGL 3.1 / Vulkan 1.3, PCIe NVMe (Gen2 default, Gen3 optional), 4K60 dual HDMI. |
 | **Raspberry Pi Compute Module 5 (CM5)** | ✅ Full Support | Tested on CM5 IO boards with full PCIe, GPIO, and dual display connectivity. |
 | **Raspberry Pi 500** | ✅ Full Support | Native BCM2712 architecture support. |
 | **Raspberry Pi 4 / 400 / 3 / Zero 2W** | ❌ Unsupported | **Incompatible.** Older chips (Cortex-A72 / A53) physically lack ARMv8.2-A, DotProd, and Crypto instructions, causing `Illegal instruction` crashes on boot. |
@@ -170,12 +170,16 @@ flatpak install flathub <app_name>
 
 <details>
 <summary><b>How do I enable PCIe Gen3 for my NVMe SSD?</b></summary>
-LMPE's <code>/boot/firmware/config.txt</code> comes pre-configured with PCIe Gen3 enabled:
+The Raspberry Pi 5 PCIe FFC interface is officially certified for PCIe Gen 2 (5 Gbps) to guarantee 100% stability across all third-party HATs and ribbon cables. 
+
+If your NVMe HAT and SSD support PCIe Gen 3 (8 Gbps), you can enable it by adding these lines to `/boot/firmware/config.txt`:
 
 ```ini
-dtparam=pciex1
+dtparam=nvme
 dtparam=pciex1_gen=3
 ```
+
+*(Note: On the Argon ONE UP laptop, the First-Boot wizard configures PCIe Gen 3 automatically as part of the hardware profile).*
 </details>
 
 <details>
