@@ -34,13 +34,13 @@ ROOT_PART="$(findmnt -n -o SOURCE /)"
 if [[ "$ROOT_PART" =~ ^/dev/(mmcblk[0-9]+|nvme[0-9]+n[0-9]+)p([0-9]+)$ ]]; then
 	DISK="${BASH_REMATCH[1]}"
 	PART="${BASH_REMATCH[2]}"
-	parted -s "/dev/${DISK}" resizepart "${PART}" 100% || true
-	partprobe "/dev/${DISK}" || true
+	printf 'Yes\n100%%\n' | parted ---pretend-input-tty "/dev/${DISK}" resizepart "${PART}" || true
+	partx -u "/dev/${DISK}" 2>/dev/null || partprobe "/dev/${DISK}" 2>/dev/null || true
 elif [[ "$ROOT_PART" =~ ^/dev/(sd[a-z]+)([0-9]+)$ ]]; then
 	DISK="${BASH_REMATCH[1]}"
 	PART="${BASH_REMATCH[2]}"
-	parted -s "/dev/${DISK}" resizepart "${PART}" 100% || true
-	partprobe "/dev/${DISK}" || true
+	printf 'Yes\n100%%\n' | parted ---pretend-input-tty "/dev/${DISK}" resizepart "${PART}" || true
+	partx -u "/dev/${DISK}" 2>/dev/null || partprobe "/dev/${DISK}" 2>/dev/null || true
 fi
 btrfs filesystem resize max / || true
 systemctl disable lmpe-btrfs-resize.service || true
