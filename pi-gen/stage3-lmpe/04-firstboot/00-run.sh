@@ -34,7 +34,7 @@ entry=black,white
 clear
 
 # --- 1. Tastaturlayout ---
-KB_LAYOUT=$(whiptail --title "LMPE First-Boot Setup (1/6) - Tastaturlayout" \
+KB_LAYOUT=$(whiptail --title "LMPE First-Boot Setup (1/7) - Tastaturlayout" \
     --menu "Bitte wähle dein Tastaturlayout:" 18 70 8 \
     "de"            "Deutsch (Standard QWERTZ)" \
     "de-nodeadkeys" "Deutsch (ohne Akzenttasten / Deadkeys)" \
@@ -52,11 +52,11 @@ else
 fi
 setupcon -k --force /dev/tty1 2>/dev/null || true
 
-whiptail --title "LMPE First-Boot Setup (1/6) - Tastatur-Test" \
+whiptail --title "LMPE First-Boot Setup (1/7) - Tastatur-Test" \
     --inputbox "Tastaturlayout wurde gesetzt. Du kannst hier kurz testen (z.B. Z, Y, @, ?, -, _):\n(Danach 'OK' wählen oder Enter drücken)" 12 70 "" 3>&1 1>&2 2>&3 || true
 
 # --- 2. Systemsprache & Zeitzone ---
-LOCALE_CHOICE=$(whiptail --title "LMPE First-Boot Setup (2/6) - Sprache & Zeitzone" \
+LOCALE_CHOICE=$(whiptail --title "LMPE First-Boot Setup (2/7) - Sprache & Zeitzone" \
     --menu "Bitte wähle die Systemsprache und Zeitzone:" 16 70 5 \
     "de_DE.UTF-8" "Deutsch (Deutschland) - Europe/Berlin" \
     "de_AT.UTF-8" "Deutsch (Österreich)  - Europe/Vienna" \
@@ -81,7 +81,7 @@ rfkill unblock wifi 2>/dev/null || true
 # --- 3. Hostname ---
 CURRENT_HOST=$(hostname)
 while true; do
-    NEW_HOST=$(whiptail --title "LMPE First-Boot Setup (3/6) - Hostname" \
+    NEW_HOST=$(whiptail --title "LMPE First-Boot Setup (3/7) - Hostname" \
         --inputbox "Wie soll dieser Raspberry Pi im Netzwerk heißen (Hostname)?" 12 70 "${CURRENT_HOST:-lmpe-pi5}" \
         3>&1 1>&2 2>&3) || NEW_HOST="${CURRENT_HOST:-lmpe-pi5}"
     if echo "$NEW_HOST" | grep -Eq '^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]$'; then
@@ -93,7 +93,7 @@ while true; do
 done
 
 # --- 4. WLAN-Konfiguration ---
-if whiptail --title "LMPE First-Boot Setup (4/6) - WLAN" \
+if whiptail --title "LMPE First-Boot Setup (4/7) - WLAN" \
     --yesno "Möchtest du jetzt eine WLAN-Verbindung einrichten?\n(Bei LAN-Kabel oder späterer Einrichtung im Desktop 'Nein' wählen)" 12 70; then
     while true; do
         whiptail --title "WLAN-Suche" --infobox "Suche nach WLAN-Netzwerken..." 8 50
@@ -104,12 +104,12 @@ if whiptail --title "LMPE First-Boot Setup (4/6) - WLAN" \
             fi
             continue
         fi
-        SSID=$(whiptail --title "LMPE First-Boot Setup (4/6) - WLAN auswählen" \
+        SSID=$(whiptail --title "LMPE First-Boot Setup (4/7) - WLAN auswählen" \
             --menu "Wähle dein WLAN-Netzwerk (Abbrechen zum Überspringen):" 20 75 10 \
             "${WIFI_LIST[@]}" \
             3>&1 1>&2 2>&3) || break
 
-        PASS_MODE=$(whiptail --title "LMPE First-Boot Setup (4/6) - Passworteingabe" \
+        PASS_MODE=$(whiptail --title "LMPE First-Boot Setup (4/7) - Passworteingabe" \
             --menu "Wie möchtest du das WLAN-Passwort für '$SSID' eingeben?" 13 65 2 \
             "visible" "Im Klartext anzeigen (Empfohlen, um Tippfehler zu vermeiden)" \
             "hidden"  "Verdeckt eingeben (mit Sternchen *)" \
@@ -148,7 +148,7 @@ FIRST_USER=$(getent passwd 1000 | cut -d: -f1)
 FIRST_USER=${FIRST_USER:-pi}
 
 while true; do
-    NEW_USER=$(whiptail --title "LMPE First-Boot Setup (5/6) - Benutzername" \
+    NEW_USER=$(whiptail --title "LMPE First-Boot Setup (5/7) - Benutzername" \
         --inputbox "Gewünschter Benutzername (Kleinbuchstaben, beginnt mit Buchstabe):" 12 70 "$FIRST_USER" \
         3>&1 1>&2 2>&3) || NEW_USER="$FIRST_USER"
     if echo "$NEW_USER" | grep -Eq '^[a-z][a-z0-9_-]{0,30}$' && [ "$NEW_USER" != "root" ]; then
@@ -159,14 +159,14 @@ while true; do
 done
 
 while true; do
-    PASS1=$(whiptail --title "LMPE First-Boot Setup (5/6) - Passwort" \
+    PASS1=$(whiptail --title "LMPE First-Boot Setup (5/7) - Passwort" \
         --passwordbox "Bitte neues Passwort für '$NEW_USER' eingeben:" 12 70 \
         3>&1 1>&2 2>&3) || continue
     if [ -z "$PASS1" ]; then
         whiptail --title "Fehler" --msgbox "Das Passwort darf nicht leer sein." 10 50
         continue
     fi
-    PASS2=$(whiptail --title "LMPE First-Boot Setup (5/6) - Passwort bestätigen" \
+    PASS2=$(whiptail --title "LMPE First-Boot Setup (5/7) - Passwort bestätigen" \
         --passwordbox "Bitte das Passwort zur Bestätigung erneut eingeben:" 12 70 \
         3>&1 1>&2 2>&3) || continue
     if [ "$PASS1" != "$PASS2" ]; then
@@ -185,8 +185,34 @@ if [ "$NEW_USER" != "$FIRST_USER" ] && getent passwd "$FIRST_USER" >/dev/null; t
 fi
 echo "${NEW_USER}:${PASS1}" | chpasswd
 
-# --- 6. Standard-Sitzung (X11 vs. Wayland) ---
-SESSION_CHOICE=$(whiptail --title "LMPE First-Boot Setup (6/6) - Desktop-Sitzung" \
+# --- 6. Hardware-Plattform & Optimierungen (Argon ONE UP Laptop vs. Generischer Pi 5) ---
+if /usr/local/sbin/lmpe-config-hardware --detect >/dev/null 2>&1; then
+    if whiptail --title "LMPE First-Boot Setup (6/7) - Hardware-Erkennung" \
+        --yesno "Argon ONE UP CM5 Laptop-Hardware wurde automatisch erkannt!\n\nMöchtest du das optimierte Hardware-Profil für den Laptop (Akku-Anzeige, Display-Helligkeit, Deckel-Sensor & angepasste Gehäuse-Lüfterkurve) jetzt aktivieren?" 14 75; then
+        /usr/local/sbin/lmpe-config-hardware --argon
+        whiptail --title "Hardware-Profil" --msgbox "Argon ONE UP Laptop-Profil erfolgreich aktiviert!" 10 60
+    else
+        /usr/local/sbin/lmpe-config-hardware --generic
+        whiptail --title "Hardware-Profil" --msgbox "Standard Raspberry Pi 5 Profil beibehalten." 10 60
+    fi
+else
+    HW_CHOICE=$(whiptail --title "LMPE First-Boot Setup (6/7) - Hardware-Profil" \
+        --menu "Bitte wähle das passende Hardware-Profil für diesen Raspberry Pi:" 16 75 2 \
+        "generic" "Standard Raspberry Pi 5 (Desktop / Offenes Gehäuse / Active Cooler)" \
+        "argon"   "Argon ONE UP CM5 Laptop (Aktiviert Akku, Display, Deckel & Lüfter)" \
+        3>&1 1>&2 2>&3) || HW_CHOICE="generic"
+
+    if [ "$HW_CHOICE" = "argon" ]; then
+        /usr/local/sbin/lmpe-config-hardware --argon
+        whiptail --title "Hardware-Profil" --msgbox "Argon ONE UP Laptop-Profil aktiviert!" 10 60
+    else
+        /usr/local/sbin/lmpe-config-hardware --generic
+        whiptail --title "Hardware-Profil" --msgbox "Standard Raspberry Pi 5 Profil aktiviert!" 10 60
+    fi
+fi
+
+# --- 7. Standard-Sitzung (X11 vs. Wayland) ---
+SESSION_CHOICE=$(whiptail --title "LMPE First-Boot Setup (7/7) - Desktop-Sitzung" \
     --menu "Welche Cinnamon-Sitzung soll standardmäßig starten?\n(Kann später jederzeit oben rechts im Login-Bildschirm gewechselt werden)" 16 75 2 \
     "cinnamon"         "Cinnamon auf X11 (Empfohlen - Maximal stabil)" \
     "cinnamon-wayland" "Cinnamon auf Wayland (Experimentell - Kein Tearing, geringerer Lag)" \

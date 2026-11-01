@@ -1,0 +1,200 @@
+#!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-or-later
+# lmpe-config-hardware — Switch and detect hardware profiles for LMPE
+# Supported profiles: 'generic' (Standard Raspberry Pi 5) and 'argon' (Argon ONE UP CM5 Laptop)
+set -euo pipefail
+
+CONFIG_TXT="/boot/firmware/config.txt"
+[ -f "$CONFIG_TXT" ] || CONFIG_TXT="/boot/config.txt"
+PROFILE_FILE="/etc/lmpe-hardware-profile"
+
+detect_hardware() {
+    # 1. Driver/device already registered in sysfs?
+    if [ -d /sys/bus/i2c/devices/1-0064 ] || [ -d /sys/class/power_supply/BAT0 ]; then
+        return 0
+    fi
+    # 2. Check if I2C-1 address 0x64 (TI battery controller) responds directly
+    if python3 -c 'import smbus2; b=smbus2.SMBus(1); b.read_byte_data(0x64, 0x00, force=True)' 2>/dev/null; then
+        return 0
+    fi
+    # 3. Check for internal Argon keyboard/touchpad USB controller
+    if grep -q "AMIRA-KEYBOAR" /proc/bus/input/devices 2>/dev/null; then
+        return 0
+    fi
+    # 4. Check for Argon lid switch input device
+    if grep -q 'Name="lid_switch"' /proc/bus/input/devices 2>/dev/null; then
+        return 0
+    fi
+    return 1
+}
+
+apply_argon_profile() {
+    echo "=== Aktiviere Argon ONE UP CM5 Laptop Hardware-Profil ==="
+
+    # 1. config.txt: Bereinigen und Argon-Profil anhängen
+    sed -i '/# --- LMPE Hardware-Profil: /,$d' "$CONFIG_TXT" 2>/dev/null || true
+    sed -i '/# --- Argon ONE UP \/ CM5 spezifische Overlays ---/,+22d' "$CONFIG_TXT" 2>/dev/null || true
+
+    cat << 'EOF' >> "$CONFIG_TXT"
+
+# --- LMPE Hardware-Profil: Argon ONE UP CM5 Laptop ---
+dtoverlay=dwc2,dr_mode=host
+dtoverlay=argon-oneup-battery
+dtoverlay=argon-oneup-lid
+
+# Aggressive Lüfterkurve (Früher Start bei 40°C für kühlen Betrieb im geschlossenen Laptop-Gehäuse)
+dtparam=fan_temp0=40000
+dtparam=fan_temp0_speed=100
+dtparam=fan_temp0_hyst=5000
+dtparam=fan_temp1=50000
+dtparam=fan_temp1_speed=150
+dtparam=fan_temp1_hyst=5000
+dtparam=fan_temp2=60000
+dtparam=fan_temp2_speed=200
+dtparam=fan_temp2_hyst=5000
+dtparam=fan_temp3=70000
+dtparam=fan_temp3_speed=250
+dtparam=fan_temp3_hyst=5000
+EOF
+
+    # 2. Display Backlight Udev-Regel
+    install -d -m 755 /etc/udev/rules.d
+    cat << 'EOF' > /etc/udev/rules.d/99-argon-backlight.rules
+ACTION=="add", SUBSYSTEM=="drm", KERNEL=="card*-HDMI-A-2", TAG+="systemd", ENV{SYSTEMD_WANTS}+="argon-backlight.service"
+EOF
+
+    # 3. WirePlumber: Internes Geister-HDMI-A-2 Audio deaktivieren
+    install -d -m 755 /etc/wireplumber/wireplumber.conf.d
+    cat << 'EOF' > /etc/wireplumber/wireplumber.conf.d/50-disable-internal-hdmi-audio.conf
+monitor.alsa.rules = [
+  {
+    matches = [
+      {
+        device.name = "alsa_card.platform-107c706400.hdmi"
+      }
+    ]
+    actions = {
+      update-props = {
+        device.disabled = true
+      }
+    }
+  }
+]
+EOF
+
+    # 4. Bootloader EEPROM 5A-Modus
+    if [ -x /usr/sbin/argononeup-eepromconfig.py ]; then
+        /usr/sbin/argononeup-eepromconfig.py 2>/dev/null || true
+    fi
+
+    # 5. IRQ Balance Policy
+    if [ -f /etc/default/irqbalance ] && [ -x /usr/bin/argon-oneup-irq-policy ]; then
+        if grep -q "IRQBALANCE_ARGS=" /etc/default/irqbalance; then
+            sed -i 's|^#*IRQBALANCE_ARGS=.*|IRQBALANCE_ARGS="--policyscript=/usr/bin/argon-oneup-irq-policy"|' /etc/default/irqbalance
+        else
+            echo 'IRQBALANCE_ARGS="--policyscript=/usr/bin/argon-oneup-irq-policy"' >> /etc/default/irqbalance
+        fi
+    fi
+
+    # 6. fstrim nur bei Netzbetrieb (Akkuschonung)
+    install -d -m 755 /etc/systemd/system/fstrim.timer.d
+    cat << 'EOF' > /etc/systemd/system/fstrim.timer.d/acpower.conf
+[Unit]
+ConditionACPower=true
+EOF
+
+    # 7. Udev & systemd neu laden
+    udevadm control --reload-rules 2>/dev/null || true
+    systemctl daemon-reload 2>/dev/null || true
+
+    echo "argon" > "$PROFILE_FILE"
+    echo "✓ Argon ONE UP Profil erfolgreich angewendet."
+}
+
+apply_generic_profile() {
+    echo "=== Aktiviere Standard Raspberry Pi 5 Hardware-Profil ==="
+
+    # 1. config.txt: Bereinigen und Standard-Pi-5-Profil anhängen
+    sed -i '/# --- LMPE Hardware-Profil: /,$d' "$CONFIG_TXT" 2>/dev/null || true
+    sed -i '/# --- Argon ONE UP \/ CM5 spezifische Overlays ---/,+22d' "$CONFIG_TXT" 2>/dev/null || true
+
+    cat << 'EOF' >> "$CONFIG_TXT"
+
+# --- LMPE Hardware-Profil: Standard Raspberry Pi 5 ---
+# Standard Raspberry Pi 5 Active Cooler Lüfterkurve
+dtparam=fan_temp0=50000
+dtparam=fan_temp0_speed=75
+dtparam=fan_temp0_hyst=5000
+dtparam=fan_temp1=60000
+dtparam=fan_temp1_speed=125
+dtparam=fan_temp1_hyst=5000
+dtparam=fan_temp2=67500
+dtparam=fan_temp2_speed=175
+dtparam=fan_temp2_hyst=5000
+dtparam=fan_temp3=75000
+dtparam=fan_temp3_speed=250
+dtparam=fan_temp3_hyst=5000
+EOF
+
+    # 2. Argon Backlight Udev-Regel entfernen
+    rm -f /etc/udev/rules.d/99-argon-backlight.rules
+
+    # 3. WirePlumber: Internes Audio nicht mehr blockieren (beide HDMI-Ports haben Ton)
+    rm -f /etc/wireplumber/wireplumber.conf.d/50-disable-internal-hdmi-audio.conf
+
+    # 4. IRQ Balance Policy bereinigen
+    if [ -f /etc/default/irqbalance ]; then
+        sed -i 's|.*argon-oneup-irq-policy.*||g' /etc/default/irqbalance
+    fi
+
+    # 5. fstrim Battery-Condition entfernen (Standard regelmäßiger TRIM)
+    rm -f /etc/systemd/system/fstrim.timer.d/acpower.conf
+
+    # 6. Udev & systemd neu laden
+    udevadm control --reload-rules 2>/dev/null || true
+    systemctl daemon-reload 2>/dev/null || true
+
+    echo "generic" > "$PROFILE_FILE"
+    echo "✓ Standard Raspberry Pi 5 Profil erfolgreich angewendet."
+}
+
+show_status() {
+    CURRENT="generic"
+    if [ -f "$PROFILE_FILE" ]; then
+        CURRENT=$(cat "$PROFILE_FILE")
+    elif grep -q "argon-oneup-battery" "$CONFIG_TXT" 2>/dev/null; then
+        CURRENT="argon"
+    fi
+    echo "Aktives LMPE Hardware-Profil: $CURRENT"
+}
+
+case "${1:-}" in
+    --detect|-d)
+        if detect_hardware; then
+            echo "argon"
+            exit 0
+        else
+            echo "generic"
+            exit 1
+        fi
+        ;;
+    --argon|-a|argon)
+        [ "$(id -u)" -eq 0 ] || { echo "Fehler: Bitte als root (sudo) ausführen." >&2; exit 1; }
+        apply_argon_profile
+        ;;
+    --generic|-g|generic)
+        [ "$(id -u)" -eq 0 ] || { echo "Fehler: Bitte als root (sudo) ausführen." >&2; exit 1; }
+        apply_generic_profile
+        ;;
+    --status|-s|status)
+        show_status
+        ;;
+    *)
+        echo "Verwendung: lmpe-config-hardware {--detect|--argon|--generic|--status}"
+        echo "  --detect    Prüft, ob Argon ONE UP Hardware angeschlossen ist (Exitcode 0=Ja, 1=Nein)"
+        echo "  --argon     Aktiviert das Argon ONE UP CM5 Laptop Profil"
+        echo "  --generic   Aktiviert das Standard Raspberry Pi 5 Profil"
+        echo "  --status    Zeigt das aktuell aktive Profil an"
+        exit 1
+        ;;
+esac

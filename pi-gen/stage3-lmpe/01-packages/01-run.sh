@@ -148,7 +148,7 @@ ACTION=="add", SUBSYSTEM=="net", KERNEL=="eth0", DRIVERS=="macb", RUN+="/usr/sbi
 ACTION=="add", SUBSYSTEM=="drm", KERNEL=="card0", RUN+="/usr/sbin/lmpe-runtime-tune"
 EOF
 
-# 7.Geister-Audioausgang (HDMI-A-2 internes Display) in WirePlumber deaktivieren & doppelte Audio-Session unter LightDM verhindern
+# 7. Doppelte Audio-Session unter LightDM verhindern
 for unit in pipewire.socket pipewire-pulse.socket pipewire.service pipewire-pulse.service wireplumber.service filter-chain.service; do
     install -d -m 755 "${ROOTFS_DIR}/etc/systemd/user/${unit}.d"
     cat << 'EOF' > "${ROOTFS_DIR}/etc/systemd/user/${unit}.d/nosystem.conf"
@@ -156,23 +156,6 @@ for unit in pipewire.socket pipewire-pulse.socket pipewire.service pipewire-puls
 ConditionUser=!@system
 EOF
 done
-install -d -m 755 "${ROOTFS_DIR}/etc/wireplumber/wireplumber.conf.d"
-cat << 'EOF' > "${ROOTFS_DIR}/etc/wireplumber/wireplumber.conf.d/50-disable-internal-hdmi-audio.conf"
-monitor.alsa.rules = [
-  {
-    matches = [
-      {
-        device.name = "alsa_card.platform-107c706400.hdmi"
-      }
-    ]
-    actions = {
-      update-props = {
-        device.disabled = true
-      }
-    }
-  }
-]
-EOF
 
 # 8. Bluetooth beim Booten automatisch aktivieren
 chmod 555 "${ROOTFS_DIR}/etc/bluetooth" 2>/dev/null || true
@@ -197,7 +180,12 @@ EOF
 rm -f "${ROOTFS_DIR}/etc/resolv.conf"
 cp /etc/resolv.conf "${ROOTFS_DIR}/etc/resolv.conf"
 
-# 10. EEPROM 5A-Modus (PSU_MAX_CURRENT=5000) & irqbalance Policy-Script
+# 10. Hardware-Profil-Manager & Argon-Unterstützungstools installieren
+install -d -m 755 "${ROOTFS_DIR}/usr/local/sbin" "${ROOTFS_DIR}/usr/local/bin"
+install -m 755 files/sbin/lmpe-config-hardware "${ROOTFS_DIR}/usr/local/sbin/lmpe-config-hardware"
+ln -sf /usr/local/sbin/lmpe-config-hardware "${ROOTFS_DIR}/usr/local/bin/lmpe-config-hardware"
+echo "generic" > "${ROOTFS_DIR}/etc/lmpe-hardware-profile"
+
 install -m 755 files/sbin/argononeup-eepromconfig.py "${ROOTFS_DIR}/usr/sbin/argononeup-eepromconfig.py"
 install -m 755 files/bin/argon-oneup-irq-policy "${ROOTFS_DIR}/usr/bin/argon-oneup-irq-policy"
 install -m 755 files/bin/argon-brightness-step "${ROOTFS_DIR}/usr/bin/argon-brightness-step"
@@ -206,31 +194,6 @@ install -d -m 755 "${ROOTFS_DIR}/etc/xdg/ddcutil"
 cat << 'EOF' > "${ROOTFS_DIR}/etc/xdg/ddcutil/ddcutilrc"
 [global]
 options: --disable-dynamic-sleep --sleep-multiplier 0.1 --disable-heuristic-unsupported
-EOF
-
-cat << 'EOF' > "${ROOTFS_DIR}/etc/systemd/system/argon-eeprom-psu.service"
-[Unit]
-Description=Argon ONE UP EEPROM 5A PSU Configuration
-After=local-fs.target
-
-[Service]
-Type=oneshot
-ExecStart=/usr/sbin/argononeup-eepromconfig.py
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-if [ -f "${ROOTFS_DIR}/etc/default/irqbalance" ] && ! grep -q "argon-oneup-irq-policy" "${ROOTFS_DIR}/etc/default/irqbalance"; then
-    echo 'IRQBALANCE_ARGS="--policyscript=/usr/bin/argon-oneup-irq-policy"' >> "${ROOTFS_DIR}/etc/default/irqbalance"
-fi
-
-# 11. SSD-Trim (fstrim.timer) nur bei angeschlossenem Netzteil
-install -d -m 755 "${ROOTFS_DIR}/etc/systemd/system/fstrim.timer.d"
-cat << 'EOF' > "${ROOTFS_DIR}/etc/systemd/system/fstrim.timer.d/acpower.conf"
-[Unit]
-ConditionACPower=true
 EOF
 
 # 12. Eigenes LMPE Plymouth Boot-Theme installieren & nahtlosen Übergang zu LightDM konfigurieren
@@ -283,15 +246,11 @@ on_chroot <<- \EOF
 	SWAPCONF
 	rm -f /var/swap
 
-	# argon-backlight udev-entkoppeln & argon-eeprom-psu absichern
+	# argon-backlight udev-entkoppeln
 	sed -i '/Before=display-manager.service/d' /etc/systemd/system/argon-backlight.service 2>/dev/null || true
-	if [ -f /etc/systemd/system/argon-eeprom-psu.service ]; then
-		sed -i '/\[Unit\]/a ConditionPathExists=!/var/lib/argon-eeprom-configured' /etc/systemd/system/argon-eeprom-psu.service
-		sed -i '/ExecStart=/a ExecStartPost=/usr/bin/touch /var/lib/argon-eeprom-configured' /etc/systemd/system/argon-eeprom-psu.service
-	fi
 
-	systemctl enable lightdm argon-eeprom-psu.service irqbalance.service systemd-resolved.service fstrim.timer bluetooth.service || true
-	systemctl disable glamor-test.service rp1-test.service e2scrub_reap.service e2scrub_all.timer rpi-eeprom-update.service argon-backlight.service ModemManager.service nfs-blkmap.service rpc-statd-notify.service 2>/dev/null || true
+	systemctl enable lightdm irqbalance.service systemd-resolved.service fstrim.timer bluetooth.service || true
+	systemctl disable glamor-test.service rp1-test.service e2scrub_reap.service e2scrub_all.timer rpi-eeprom-update.service argon-backlight.service argon-eeprom-psu.service ModemManager.service nfs-blkmap.service rpc-statd-notify.service 2>/dev/null || true
 	systemctl mask NetworkManager-wait-online.service rpcbind.service rpcbind.socket serial-getty@ttyAMA10.service 2>/dev/null || true
 	systemctl set-default graphical.target
 EOF
