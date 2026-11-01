@@ -49,7 +49,7 @@ Just as Debian names its releases after *Toy Story* characters and Ubuntu after 
 * **Dual Artwork Standard:** Every LMPE release features a coordinated artwork duo: an atmospheric Plymouth vector boot splash with boot spinner and a matching, distraction-free desktop wallpaper.
 * **Modular Theme Packaging (`lmpe-theme`):** All wallpapers, Plymouth boot splash themes, and Cinnamon background properties are packaged into the official `lmpe-theme` Debian package. Users receive new bootscreens and artwork via standard `apt upgrade` or `mintupdate` without flashing a new OS image.
 * **User Customization Protection:** Package updates will **never** overwrite a personalized wallpaper selected by the user (guaranteed by dconf user-level precedence over GSettings system schema defaults).
-* **Artwork Switcher CLI & Cinnamon GUI Integration:** Switch bootscreens and default artwork with `sudo lmpe-theme set <name>` or choose from the dedicated "LMPE" category directly inside Cinnamon's *System Settings → Backgrounds*.
+* **Artwork Gallery & Cinnamon GUI Integration:** All current and past release wallpapers are neatly organized in `/usr/share/backgrounds/lmpe/` and available directly inside Cinnamon's *System Settings → Backgrounds* under the dedicated **LMPE** category.
 
 ---
 
@@ -229,24 +229,12 @@ sudo apt update && sudo apt full-upgrade
 </details>
 
 <details>
-<summary><b>How do I switch or update bootscreens and wallpapers?</b></summary>
-Bootscreens and wallpapers are managed by the official <code>lmpe-theme</code> Debian package.
+<summary><b>How do bootscreen and wallpaper updates work?</b></summary>
+Bootscreens, Plymouth themes, and wallpapers are managed by the official <code>lmpe-theme</code> Debian package.
 
-1. <b>Graphical Selection:</b> Open <b>System Settings → Backgrounds</b> in Cinnamon and select the <b>LMPE</b> category to view all release wallpapers.
-2. <b>List Available Themes via CLI:</b>
-   ```bash
-   lmpe-theme list
-   ```
-3. <b>Change the Bootscreen & System Default Wallpaper:</b>
-   ```bash
-   sudo lmpe-theme set <name>    # Options: tatooine, felucia, wayland, picard
-   ```
-   *(This automatically regenerates the initramfs and installs the bootscreen into <code>/boot/firmware</code>).*
-4. <b>Change Desktop Wallpaper for Current User Only:</b>
-   ```bash
-   lmpe-theme apply <name>
-   ```
-Whenever new themes or bootscreens are released, they are delivered directly over-the-air via <code>sudo apt update && sudo apt upgrade</code>.
+* <b>Over-the-Air Updates:</b> Whenever an updated theme or new release bootscreen is published, updating the system (<code>sudo apt update && sudo apt upgrade</code> or via <code>mintupdate</code>) automatically installs the new bootscreen and regenerates the bootloader initramfs without requiring a reflash.
+* <b>Custom Wallpaper Safety:</b> If you selected a custom desktop wallpaper in Cinnamon, it will <b>never</b> be overwritten because personal user choices in dconf always take precedence over system defaults.
+* <b>Wallpaper Gallery:</b> All past and current release wallpapers are stored in <code>/usr/share/backgrounds/lmpe/</code> and can be selected graphically at any time under <b>System Settings → Backgrounds → LMPE</b>.
 </details>
 
 <details>
