@@ -65,7 +65,13 @@ grep -q "^XKBVARIANT=" /etc/default/keyboard && sed -i "s/^XKBVARIANT=.*/XKBVARI
 grep -q "^XKBMODEL=" /etc/default/keyboard || echo 'XKBMODEL="pc105"' >> /etc/default/keyboard
 
 # 2. Sofort auf der TTY anwenden, damit Passworteingaben im Setup direkt das gewählte Layout nutzen
-setupcon -k --force /dev/tty1 2>/dev/null || true
+if [ -n "$XKB_VARIANT" ]; then
+    ckbcomp "$XKB_LAYOUT" "$XKB_VARIANT" 2>/dev/null | loadkeys 2>/dev/null || true
+else
+    ckbcomp "$XKB_LAYOUT" 2>/dev/null | loadkeys 2>/dev/null || true
+fi
+setupcon -k --force 2>/dev/null || true
+setupcon --save-only 2>/dev/null || true
 udevadm trigger --subsystem-match=input --action=change 2>/dev/null || true
 
 # 3. X11 / systemd-localed synchronisieren
