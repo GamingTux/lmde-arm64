@@ -188,26 +188,26 @@ echo "${NEW_USER}:${PASS1}" | chpasswd
 # --- 6. Hardware-Plattform & Optimierungen (Argon ONE UP Laptop vs. Generischer Pi 5) ---
 if /usr/local/sbin/lmpe-config-hardware --detect >/dev/null 2>&1; then
     if whiptail --title "LMPE First-Boot Setup (6/7) - Hardware-Erkennung" \
-        --yesno "Argon ONE UP CM5 Laptop-Hardware wurde automatisch erkannt!\n\nMöchtest du das optimierte Hardware-Profil für den Laptop (Akku-Anzeige, Display-Helligkeit, Deckel-Sensor & angepasste Gehäuse-Lüfterkurve) jetzt aktivieren?" 14 75; then
+        --yesno "Argon ONE UP CM5 Laptop-Hardware wurde automatisch erkannt!\n\nMöchtest du das optimierte Hardware-Profil für den Laptop (2.8 GHz Overclocking, Akku-Anzeige, Display-Helligkeit, Deckel-Sensor & angepasste Lüfterkurve) jetzt aktivieren?\n\n(Bei 'Nein' bleibt der Raspberry Pi auf 100 % Standard-Takt und Standard-Lüftersteuerung der Firmware)" 15 75; then
         /usr/local/sbin/lmpe-config-hardware --argon
-        whiptail --title "Hardware-Profil" --msgbox "Argon ONE UP Laptop-Profil erfolgreich aktiviert!" 10 60
+        whiptail --title "Hardware-Profil" --msgbox "Argon ONE UP Laptop-Profil erfolgreich aktiviert (2.8 GHz + Laptop-Treiber)!" 10 65
     else
         /usr/local/sbin/lmpe-config-hardware --generic
-        whiptail --title "Hardware-Profil" --msgbox "Standard Raspberry Pi 5 Profil beibehalten." 10 60
+        whiptail --title "Hardware-Profil" --msgbox "Standard Raspberry Pi 5 Profil beibehalten (Standard-Takt & Standard-Lüfterkurve)." 10 65
     fi
 else
     HW_CHOICE=$(whiptail --title "LMPE First-Boot Setup (6/7) - Hardware-Profil" \
         --menu "Bitte wähle das passende Hardware-Profil für diesen Raspberry Pi:" 16 75 2 \
-        "generic" "Standard Raspberry Pi 5 (Desktop / Offenes Gehäuse / Active Cooler)" \
-        "argon"   "Argon ONE UP CM5 Laptop (Aktiviert Akku, Display, Deckel & Lüfter)" \
+        "generic" "Standard Raspberry Pi 5 (Standard-Takt & Standard-Lüfterkurve der Firmware)" \
+        "argon"   "Argon ONE UP CM5 Laptop (2.8 GHz Overclocking, Akku, Display, Deckel & Lüfter)" \
         3>&1 1>&2 2>&3) || HW_CHOICE="generic"
 
     if [ "$HW_CHOICE" = "argon" ]; then
         /usr/local/sbin/lmpe-config-hardware --argon
-        whiptail --title "Hardware-Profil" --msgbox "Argon ONE UP Laptop-Profil aktiviert!" 10 60
+        whiptail --title "Hardware-Profil" --msgbox "Argon ONE UP Laptop-Profil aktiviert (2.8 GHz + Laptop-Treiber)!" 10 65
     else
         /usr/local/sbin/lmpe-config-hardware --generic
-        whiptail --title "Hardware-Profil" --msgbox "Standard Raspberry Pi 5 Profil aktiviert!" 10 60
+        whiptail --title "Hardware-Profil" --msgbox "Standard Raspberry Pi 5 Profil aktiviert (Standard-Takt & Standard-Lüfterkurve)!" 10 65
     fi
 fi
 

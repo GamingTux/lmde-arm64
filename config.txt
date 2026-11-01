@@ -9,10 +9,7 @@ arm_64bit=1
 # --- Performance & PCIe / NVMe ---
 dtparam=nvme
 dtparam=pciex1_gen=3
-dtparam=ant2
 usb_max_current_enable=1
-arm_boost=1
-dtparam=cm5-sdcard-fast
 
 # --- Display, Grafik & Boot ---
 dtoverlay=vc4-kms-v3d
@@ -23,24 +20,5 @@ disable_splash=1
 camera_auto_detect=0
 display_auto_detect=0
 auto_initramfs=1
-
-# --- Raspberry Pi 5 / CM5 Overclocking ---
-[pi5]
-arm_freq=2800
-
-# --- LMPE Hardware-Profil: Standard Raspberry Pi 5 ---
-# Standard Raspberry Pi 5 Active Cooler Lüfterkurve
-dtparam=fan_temp0=50000
-dtparam=fan_temp0_speed=75
-dtparam=fan_temp0_hyst=5000
-dtparam=fan_temp1=60000
-dtparam=fan_temp1_speed=125
-dtparam=fan_temp1_hyst=5000
-dtparam=fan_temp2=67500
-dtparam=fan_temp2_speed=175
-dtparam=fan_temp2_hyst=5000
-dtparam=fan_temp3=75000
-dtparam=fan_temp3_speed=250
-dtparam=fan_temp3_hyst=5000
 
 [all]

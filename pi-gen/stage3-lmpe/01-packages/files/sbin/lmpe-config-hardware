@@ -41,6 +41,12 @@ apply_argon_profile() {
 dtoverlay=dwc2,dr_mode=host
 dtoverlay=argon-oneup-battery
 dtoverlay=argon-oneup-lid
+dtparam=ant2
+dtparam=cm5-sdcard-fast
+
+[pi5]
+arm_freq=2800
+arm_boost=1
 
 # Aggressive Lüfterkurve (Früher Start bei 40°C für kühlen Betrieb im geschlossenen Laptop-Gehäuse)
 dtparam=fan_temp0=40000
@@ -55,6 +61,8 @@ dtparam=fan_temp2_hyst=5000
 dtparam=fan_temp3=70000
 dtparam=fan_temp3_speed=250
 dtparam=fan_temp3_hyst=5000
+
+[all]
 EOF
 
     # 2. Display Backlight Udev-Regel
@@ -114,27 +122,14 @@ EOF
 apply_generic_profile() {
     echo "=== Aktiviere Standard Raspberry Pi 5 Hardware-Profil ==="
 
-    # 1. config.txt: Bereinigen und Standard-Pi-5-Profil anhängen
+    # 1. config.txt: Entferne alle Profil-spezifischen Blöcke (Standard-Firmware-Takt & Standard-Lüfterkurve)
     sed -i '/# --- LMPE Hardware-Profil: /,$d' "$CONFIG_TXT" 2>/dev/null || true
     sed -i '/# --- Argon ONE UP \/ CM5 spezifische Overlays ---/,+22d' "$CONFIG_TXT" 2>/dev/null || true
 
-    cat << 'EOF' >> "$CONFIG_TXT"
-
-# --- LMPE Hardware-Profil: Standard Raspberry Pi 5 ---
-# Standard Raspberry Pi 5 Active Cooler Lüfterkurve
-dtparam=fan_temp0=50000
-dtparam=fan_temp0_speed=75
-dtparam=fan_temp0_hyst=5000
-dtparam=fan_temp1=60000
-dtparam=fan_temp1_speed=125
-dtparam=fan_temp1_hyst=5000
-dtparam=fan_temp2=67500
-dtparam=fan_temp2_speed=175
-dtparam=fan_temp2_hyst=5000
-dtparam=fan_temp3=75000
-dtparam=fan_temp3_speed=250
-dtparam=fan_temp3_hyst=5000
-EOF
+    # Sicherstellen, dass [all] am Ende steht
+    if ! grep -q '\[all\]' "$CONFIG_TXT" 2>/dev/null; then
+        echo -e "\n[all]" >> "$CONFIG_TXT"
+    fi
 
     # 2. Argon Backlight Udev-Regel entfernen
     rm -f /etc/udev/rules.d/99-argon-backlight.rules
