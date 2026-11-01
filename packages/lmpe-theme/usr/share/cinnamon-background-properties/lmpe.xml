@@ -2,8 +2,8 @@
 <!DOCTYPE wallpapers SYSTEM "cinnamon-wp-list.dtd">
 <wallpapers>
   <wallpaper deleted="false">
-    <name>LMPE Picard</name>
-    <filename>/usr/share/backgrounds/lmpe/picard.png</filename>
+    <name>LMPE Tatooine</name>
+    <filename>/usr/share/backgrounds/lmpe/tatooine.png</filename>
     <options>zoom</options>
     <shade_type>solid</shade_type>
     <pcolor>#090b10</pcolor>
@@ -11,8 +11,8 @@
     <artist>LMPE Artwork Team</artist>
   </wallpaper>
   <wallpaper deleted="false">
-    <name>LMPE Tatooine</name>
-    <filename>/usr/share/backgrounds/lmpe/tatooine.png</filename>
+    <name>LMPE Picard</name>
+    <filename>/usr/share/backgrounds/lmpe/picard.png</filename>
     <options>zoom</options>
     <shade_type>solid</shade_type>
     <pcolor>#090b10</pcolor>

@@ -3,9 +3,9 @@ set -e
 
 case "$1" in
     configure)
-        # Set official release artwork symlinks (Picard Edition active default)
-        (cd /usr/share/backgrounds/lmpe && ln -sf picard.png default.png) 2>/dev/null || true
-        (cd /usr/share/plymouth/themes/lmpe && ln -sf backgrounds/picard.png background.png) 2>/dev/null || true
+        # Set official release artwork symlinks (Tatooine Edition active default)
+        (cd /usr/share/backgrounds/lmpe && ln -sf tatooine.png default.png) 2>/dev/null || true
+        (cd /usr/share/plymouth/themes/lmpe && ln -sf backgrounds/tatooine.png background.png) 2>/dev/null || true
 
         # Clean up legacy schema overrides
         rm -f /usr/share/glib-2.0/schemas/99-lmpe-theme.gschema.override
