@@ -47,12 +47,43 @@ KB_LAYOUT=$(whiptail --title "LMPE First-Boot Setup (1/7) - Keyboard Layout" \
     "es"            "Spanish" \
     3>&1 1>&2 2>&3) || KB_LAYOUT="us"
 
-if [ "$KB_LAYOUT" = "de-nodeadkeys" ]; then
-    sed -i 's/^XKBLAYOUT=.*/XKBLAYOUT="de"/; s/^XKBVARIANT=.*/XKBVARIANT="nodeadkeys"/' /etc/default/keyboard
-else
-    raspi-config nonint do_change_keyboard "$KB_LAYOUT" 2>/dev/null || true
-fi
+case "$KB_LAYOUT" in
+    de-nodeadkeys) XKB_LAYOUT="de"; XKB_VARIANT="nodeadkeys" ;;
+    de)            XKB_LAYOUT="de"; XKB_VARIANT="" ;;
+    ch)            XKB_LAYOUT="ch"; XKB_VARIANT="" ;;
+    at)            XKB_LAYOUT="at"; XKB_VARIANT="" ;;
+    fr)            XKB_LAYOUT="fr"; XKB_VARIANT="" ;;
+    es)            XKB_LAYOUT="es"; XKB_VARIANT="" ;;
+    gb)            XKB_LAYOUT="gb"; XKB_VARIANT="" ;;
+    us)            XKB_LAYOUT="us"; XKB_VARIANT="" ;;
+    *)             XKB_LAYOUT="$KB_LAYOUT"; XKB_VARIANT="" ;;
+esac
+
+# 1. Systemweites /etc/default/keyboard für TTY, Slick-Greeter & X11 setzen
+grep -q "^XKBLAYOUT=" /etc/default/keyboard && sed -i "s/^XKBLAYOUT=.*/XKBLAYOUT=\"$XKB_LAYOUT\"/" /etc/default/keyboard || echo "XKBLAYOUT=\"$XKB_LAYOUT\"" >> /etc/default/keyboard
+grep -q "^XKBVARIANT=" /etc/default/keyboard && sed -i "s/^XKBVARIANT=.*/XKBVARIANT=\"$XKB_VARIANT\"/" /etc/default/keyboard || echo "XKBVARIANT=\"$XKB_VARIANT\"" >> /etc/default/keyboard
+grep -q "^XKBMODEL=" /etc/default/keyboard || echo 'XKBMODEL="pc105"' >> /etc/default/keyboard
+
+# 2. Sofort auf der TTY anwenden, damit Passworteingaben im Setup direkt das gewählte Layout nutzen
 setupcon -k --force /dev/tty1 2>/dev/null || true
+udevadm trigger --subsystem-match=input --action=change 2>/dev/null || true
+
+# 3. X11 / systemd-localed synchronisieren
+if [ -n "$XKB_VARIANT" ]; then
+    localectl set-x11-keymap "$XKB_LAYOUT" pc105 "$XKB_VARIANT" 2>/dev/null || true
+    INPUT_SRC="[('xkb', '${XKB_LAYOUT}+${XKB_VARIANT}')]"
+else
+    localectl set-x11-keymap "$XKB_LAYOUT" pc105 "" 2>/dev/null || true
+    INPUT_SRC="[('xkb', '${XKB_LAYOUT}')]"
+fi
+
+# 4. Cinnamon & GNOME Desktop Input Sources Schema-Default setzen
+mkdir -p /usr/share/glib-2.0/schemas
+cat << SKBD > /usr/share/glib-2.0/schemas/zz-lmpe-keyboard.gschema.override
+[org.gnome.desktop.input-sources]
+sources=$INPUT_SRC
+SKBD
+glib-compile-schemas /usr/share/glib-2.0/schemas 2>/dev/null || true
 
 whiptail --title "LMPE First-Boot Setup (1/7) - Keyboard Test" \
     --inputbox "Keyboard layout applied. You can test typing here (e.g. Z, Y, @, ?, -, _):\n(Select 'OK' or press Enter to continue)" 12 70 "" 3>&1 1>&2 2>&3 || true
@@ -242,8 +273,6 @@ greeter-hide-users=false
 LCONF
 fi
 
-# Auch das X11-Tastaturlayout für LightDM / Cinnamon synchronisieren
-localectl set-x11-keymap "${KB_LAYOUT%%-*}" pc105 "${KB_LAYOUT#*-}" 2>/dev/null || true
 
 whiptail --title "LMPE Setup Complete" \
     --msgbox "Setup is complete!\n\nYour configuration has been applied. The system will now launch the Linux Mint Cinnamon desktop.\n\nWelcome to LMPE 'Tatooine'! ☀️☀️" 12 65
