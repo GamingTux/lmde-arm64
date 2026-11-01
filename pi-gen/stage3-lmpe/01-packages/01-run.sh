@@ -10,7 +10,7 @@ EOF
 
 cat << 'EOF' > "${ROOTFS_DIR}/etc/lightdm/slick-greeter.conf"
 [Greeter]
-background=/usr/share/backgrounds/lmpe/tatooine.png
+background=/usr/share/backgrounds/lmpe/default.png
 show-hostname=true
 EOF
 
@@ -37,12 +37,12 @@ EndSection
 EOF
 
 install -d -m 755 "${ROOTFS_DIR}/usr/share/backgrounds/lmpe"
-cp files/backgrounds/* "${ROOTFS_DIR}/usr/share/backgrounds/lmpe/"
+cp -a files/backgrounds/* "${ROOTFS_DIR}/usr/share/backgrounds/lmpe/"
 
 install -d -m 755 "${ROOTFS_DIR}/usr/share/glib-2.0/schemas"
 cat << 'EOF' > "${ROOTFS_DIR}/usr/share/glib-2.0/schemas/99-lmpe.gschema.override"
 [org.cinnamon.desktop.background]
-picture-uri='file:///usr/share/backgrounds/lmpe/tatooine.png'
+picture-uri='file:///usr/share/backgrounds/lmpe/default.png'
 picture-options='zoom'
 
 [org.cinnamon.desktop.peripherals.touchpad]
@@ -188,6 +188,8 @@ cp /etc/resolv.conf "${ROOTFS_DIR}/etc/resolv.conf"
 # 10. Eigenes LMPE Plymouth Boot-Theme installieren & nahtlosen Übergang zu LightDM konfigurieren
 install -d -m 755 "${ROOTFS_DIR}/usr/share/plymouth/themes/lmpe"
 cp -a files/plymouth/lmpe/* "${ROOTFS_DIR}/usr/share/plymouth/themes/lmpe/"
+
+install -m 755 files/lmpe-theme "${ROOTFS_DIR}/usr/bin/lmpe-theme"
 
 install -d -m 755 "${ROOTFS_DIR}/etc/systemd/system/plymouth-quit.service.d"
 cat << 'EOF' > "${ROOTFS_DIR}/etc/systemd/system/plymouth-quit.service.d/retain-splash.conf"
