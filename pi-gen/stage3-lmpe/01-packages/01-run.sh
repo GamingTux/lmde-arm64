@@ -137,7 +137,7 @@ chmod 755 "${ROOTFS_DIR}/usr/sbin/lmpe-runtime-tune"
 
 cat << 'EOF' > "${ROOTFS_DIR}/etc/udev/rules.d/90-lmpe-argon-runtime.rules"
 # Optimal I/O Scheduler, Read-Ahead & Core Queue Affinity for NVMe SSDs and eMMC/SD/USB storage
-ACTION=="add|change", KERNEL=="nvme[0-9]*n[0-9]*", ATTR{queue/scheduler}="none", ATTR{queue/read_ahead_kb}="512", ATTR{queue/rq_affinity}="2"
+ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="disk", KERNEL=="nvme[0-9]*n[0-9]*", ATTR{queue/scheduler}="none", ATTR{queue/read_ahead_kb}="512", ATTR{queue/rq_affinity}="2"
 ACTION=="add|change", KERNEL=="mmcblk[0-9]*|sd[a-z]", ATTR{queue/scheduler}="mq-deadline", ATTR{queue/read_ahead_kb}="256", ATTR{queue/rq_affinity}="2"
 
 # 4-Core Receive Packet Steering (RPS/RFS) on network interfaces
@@ -269,8 +269,29 @@ on_chroot <<- \EOF
 	flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo || true
 	glib-compile-schemas /usr/share/glib-2.0/schemas || true
 	apt-get remove -y xserver-xorg-video-fbdev || true
-	systemctl enable glamor-test.service rp1-test.service lightdm argon-backlight.service argon-eeprom-psu.service irqbalance.service systemd-resolved.service fstrim.timer bluetooth.service || true
-	systemctl disable ModemManager.service nfs-blkmap.service rpc-statd-notify.service 2>/dev/null || true
+	# 14. Boot-Optimierungen: Pure ZRAM (kein /var/swap Verschleiß), EEPROM-OneShot & unblocktes Backlight
+	install -d -m 755 /etc/rpi
+	cat <<- 'SWAPCONF' > /etc/rpi/swap.conf
+	[Main]
+	Mechanism=zram
+
+	[Zram]
+	MaxSizeMiB=4096
+
+	[File]
+	MaxSizeMiB=0
+	SWAPCONF
+	rm -f /var/swap
+
+	# argon-backlight udev-entkoppeln & argon-eeprom-psu absichern
+	sed -i '/Before=display-manager.service/d' /etc/systemd/system/argon-backlight.service 2>/dev/null || true
+	if [ -f /etc/systemd/system/argon-eeprom-psu.service ]; then
+		sed -i '/\[Unit\]/a ConditionPathExists=!/var/lib/argon-eeprom-configured' /etc/systemd/system/argon-eeprom-psu.service
+		sed -i '/ExecStart=/a ExecStartPost=/usr/bin/touch /var/lib/argon-eeprom-configured' /etc/systemd/system/argon-eeprom-psu.service
+	fi
+
+	systemctl enable lightdm argon-eeprom-psu.service irqbalance.service systemd-resolved.service fstrim.timer bluetooth.service || true
+	systemctl disable glamor-test.service rp1-test.service e2scrub_reap.service e2scrub_all.timer rpi-eeprom-update.service argon-backlight.service ModemManager.service nfs-blkmap.service rpc-statd-notify.service 2>/dev/null || true
 	systemctl mask NetworkManager-wait-online.service rpcbind.service rpcbind.socket serial-getty@ttyAMA10.service 2>/dev/null || true
 	systemctl set-default graphical.target
 EOF

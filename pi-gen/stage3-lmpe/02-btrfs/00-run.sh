@@ -10,7 +10,7 @@ EOF
 
 # 2. Kernel-Kommandozeile (/boot/firmware/cmdline.txt) auf rootfstype=btrfs & Plymouth Boot-Splash umstellen
 if [ -f "${ROOTFS_DIR}/boot/firmware/cmdline.txt" ]; then
-	sed -i 's/rootfstype=ext4/rootfstype=btrfs/g' "${ROOTFS_DIR}/boot/firmware/cmdline.txt"
+	sed -i 's/rootfstype=ext4/rootfstype=btrfs rootflags=compress=zstd:2,noatime,nodiratime,ssd,discard=async/g' "${ROOTFS_DIR}/boot/firmware/cmdline.txt"
 	sed -i 's/fsck.repair=yes/fsck.repair=no/g' "${ROOTFS_DIR}/boot/firmware/cmdline.txt"
 	sed -i 's/\bresize\b//g; s/[[:space:]]*$//' "${ROOTFS_DIR}/boot/firmware/cmdline.txt"
 	if ! grep -q "splash" "${ROOTFS_DIR}/boot/firmware/cmdline.txt"; then
