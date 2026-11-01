@@ -86,10 +86,10 @@ cat << 'EOF' > /etc/firefox/99-lmpe-pi5.js
 // LMPE Raspberry Pi 5 GPU- & Codec-Optimierungen für Firefox
 pref("gfx.webrender.all", true);
 pref("layers.acceleration.force-enabled", true);
-pref("widget.dmabuf.textures", true);
-pref("media.ffmpeg.vaapi.enabled", true);
-pref("media.rdd-ffmpeg.enabled", true);
-pref("media.ffvpx.enabled", false);
+pref("media.ffmpeg.vaapi.enabled", false);
+pref("widget.dmabuf.textures", false);
+pref("media.ffvpx.enabled", true);
+pref("media.rdd-ffmpeg.enabled", false);
 pref("media.av1.enabled", true);
 pref("media.mediasource.vp9.enabled", true);
 pref("media.webm.enabled", true);
