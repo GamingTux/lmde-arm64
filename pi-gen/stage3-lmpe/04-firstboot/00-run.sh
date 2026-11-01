@@ -189,6 +189,14 @@ if [ "$NEW_USER" != "$FIRST_USER" ] && getent passwd "$FIRST_USER" >/dev/null; t
 fi
 echo "${NEW_USER}:${PASS1}" | chpasswd
 
+AUTOLOGIN="no"
+if whiptail --title "LMPE First-Boot Setup (5/7) - Automatic Login" \
+    --yesno "Would you like to automatically log into the desktop without entering your password on boot?\n\n(Select 'No' to require your password on the login screen)" 12 70; then
+    AUTOLOGIN="yes"
+    groupadd -f autologin 2>/dev/null || true
+    usermod -aG autologin "$NEW_USER" 2>/dev/null || true
+fi
+
 # --- 6. Hardware Platform Profile (Standard Pi vs. Argon ONE UP) ---
 HW_CHOICE=$(whiptail --title "LMPE First-Boot Setup (6/7) - Hardware Profile" \
     --menu "Please select the hardware profile for this system:" 14 70 2 \
@@ -216,15 +224,29 @@ SESSION_CHOICE=$(whiptail --title "LMPE First-Boot Setup (7/7) - Desktop Session
     3>&1 1>&2 2>&3) || SESSION_CHOICE="cinnamon"
 
 mkdir -p /etc/lightdm/lightdm.conf.d
-cat << LCONF > /etc/lightdm/lightdm.conf.d/90-slick-greeter.conf
+if [ "$AUTOLOGIN" = "yes" ]; then
+    cat << LCONF > /etc/lightdm/lightdm.conf.d/90-slick-greeter.conf
+[Seat:*]
+greeter-session=slick-greeter
+user-session=${SESSION_CHOICE}
+greeter-hide-users=false
+autologin-user=${NEW_USER}
+autologin-user-timeout=0
+LCONF
+else
+    cat << LCONF > /etc/lightdm/lightdm.conf.d/90-slick-greeter.conf
 [Seat:*]
 greeter-session=slick-greeter
 user-session=${SESSION_CHOICE}
 greeter-hide-users=false
 LCONF
+fi
 
 # Auch das X11-Tastaturlayout für LightDM / Cinnamon synchronisieren
 localectl set-x11-keymap "${KB_LAYOUT%%-*}" pc105 "${KB_LAYOUT#*-}" 2>/dev/null || true
+
+whiptail --title "LMPE Setup Complete" \
+    --msgbox "Setup is complete!\n\nYour configuration has been applied. The system will now launch the Linux Mint Cinnamon desktop.\n\nWelcome to LMPE 'Tatooine'! ☀️☀️" 12 65
 
 # First-Boot-Service deaktivieren, damit er nur beim allerersten Start läuft
 systemctl disable lmpe-firstboot.service 2>/dev/null || true
