@@ -8,6 +8,12 @@ user-session=cinnamon
 greeter-hide-users=false
 EOF
 
+cat << 'EOF' > "${ROOTFS_DIR}/etc/lightdm/slick-greeter.conf"
+[Greeter]
+background=/usr/share/backgrounds/lmpe/tatooine.png
+show-hostname=true
+EOF
+
 install -d -m 755 "${ROOTFS_DIR}/etc/X11/xorg.conf.d" "${ROOTFS_DIR}/usr/share/X11/xorg.conf.d"
 cat << 'EOF' > "${ROOTFS_DIR}/etc/X11/xorg.conf.d/99-v3d.conf"
 Section "OutputClass"
@@ -30,8 +36,15 @@ Section "InputClass"
 EndSection
 EOF
 
+install -d -m 755 "${ROOTFS_DIR}/usr/share/backgrounds/lmpe"
+cp files/backgrounds/* "${ROOTFS_DIR}/usr/share/backgrounds/lmpe/"
+
 install -d -m 755 "${ROOTFS_DIR}/usr/share/glib-2.0/schemas"
-cat << 'EOF' > "${ROOTFS_DIR}/usr/share/glib-2.0/schemas/99-lmpe-touchpad.gschema.override"
+cat << 'EOF' > "${ROOTFS_DIR}/usr/share/glib-2.0/schemas/99-lmpe.gschema.override"
+[org.cinnamon.desktop.background]
+picture-uri='file:///usr/share/backgrounds/lmpe/tatooine.png'
+picture-options='zoom'
+
 [org.cinnamon.desktop.peripherals.touchpad]
 tap-to-click=true
 click-method='fingers'
@@ -40,6 +53,7 @@ click-method='fingers'
 tap-to-click=true
 click-method='fingers'
 EOF
+rm -f "${ROOTFS_DIR}/usr/share/glib-2.0/schemas/99-lmpe-touchpad.gschema.override"
 
 # 3. CPU-Governor auf schedutil setzen
 install -d -m 755 "${ROOTFS_DIR}/etc/udev/rules.d"
