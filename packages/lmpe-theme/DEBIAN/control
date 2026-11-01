@@ -9,5 +9,5 @@ Recommends: lightdm, slick-greeter
 Homepage: https://github.com/GamingTux/lmde-arm64
 Description: Artwork, Plymouth bootscreens and wallpapers for LMPE
  Official branding artwork for Linux Mint Pi Edition (LMPE), including
- high-resolution bootscreens (Tatooine, Felucia, Wayland, Picard),
+ high-resolution Plymouth bootscreen (Tatooine Edition), desktop
  wallpapers, and native Cinnamon background properties.
