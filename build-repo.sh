@@ -210,6 +210,9 @@ finalize_and_sign_repo() {
     fi
     REPO_SIZE_MB="$(du -sm pool/main | awk '{print $1}')"
     echo "[$(date -u '+%H:%M:%S')] 🔐 APT-Repository erfolgreich signiert (Aktuelle Pool-Größe: ${REPO_SIZE_MB} MB / 1000 MB GitHub-Pages-Limit)."
+
+    echo "[$(date -u '+%H:%M:%S')] 🌐 Generiere interaktiven Web-Katalog (index.html)..."
+    python3 "$ROOT_DIR/generate-repo-index.py" "$REPO_DIR" || echo "⚠️ Konnte index.html nicht generieren"
   else
     echo "[$(date -u '+%H:%M:%S')] ⚠️ Keine .deb-Pakete in pool/main vorhanden – überspringe Signierung."
   fi

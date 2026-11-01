@@ -102,6 +102,13 @@ jobs:
           chmod +x ./build-repo.sh
           ./build-repo.sh
 
+      - name: Ensure repository web catalog index.html exists
+        if: always() && hashFiles('repo/dists/gigi/InRelease') != ''
+        run: |
+          if [[ -f "./generate-repo-index.py" ]]; then
+            python3 ./generate-repo-index.py ./repo || true
+          fi
+
       - name: Deploy APT repository to GitHub Pages
         if: always() && hashFiles('repo/dists/gigi/InRelease') != ''
         uses: peaceiris/actions-gh-pages@v4
