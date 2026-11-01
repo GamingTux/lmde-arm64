@@ -89,7 +89,7 @@ pref("layers.acceleration.force-enabled", true);
 pref("media.ffmpeg.vaapi.enabled", false);
 pref("widget.dmabuf.textures", false);
 pref("media.ffvpx.enabled", true);
-pref("media.rdd-ffmpeg.enabled", false);
+pref("media.rdd-ffmpeg.enabled", true);
 pref("media.av1.enabled", true);
 pref("media.mediasource.vp9.enabled", true);
 pref("media.webm.enabled", true);
