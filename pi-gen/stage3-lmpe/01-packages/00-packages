@@ -53,6 +53,7 @@ firefox
 rpi-firefox-mods
 libwidevinecdm0
 dkms
+ddcci-dkms
 build-essential
 linux-headers-rpi-2712
 linux-image-rpi-v8
