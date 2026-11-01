@@ -31,7 +31,7 @@ EndSection
 EOF
 
 install -d -m 755 "${ROOTFS_DIR}/usr/share/glib-2.0/schemas"
-cat << 'EOF' > "${ROOTFS_DIR}/usr/share/glib-2.0/schemas/99-lmpe-touchpad.gschema.override"
+cat << 'EOF' > "${ROOTFS_DIR}/usr/share/glib-2.0/schemas/zz-lmpe-touchpad.gschema.override"
 [org.cinnamon.desktop.peripherals.touchpad]
 tap-to-click=true
 click-method='fingers'
@@ -40,7 +40,7 @@ click-method='fingers'
 tap-to-click=true
 click-method='fingers'
 EOF
-rm -f "${ROOTFS_DIR}/usr/share/glib-2.0/schemas/99-lmpe.gschema.override"
+rm -f "${ROOTFS_DIR}/usr/share/glib-2.0/schemas/99-lmpe*.override"
 
 # 3. CPU-Governor auf schedutil setzen
 install -d -m 755 "${ROOTFS_DIR}/etc/udev/rules.d"
