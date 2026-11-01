@@ -1,41 +1,43 @@
-// Deep dark OEM background color (#0a0b10)
-Window.SetBackgroundTopColor(0.039, 0.043, 0.063);
-Window.SetBackgroundBottomColor(0.039, 0.043, 0.063);
+// LMPE "Tatooine Edition" Official Plymouth Theme
+// Deep dark OEM background color (#090b10)
+Window.SetBackgroundTopColor(0.035, 0.043, 0.063);
+Window.SetBackgroundBottomColor(0.035, 0.043, 0.063);
 
 sw = Window.GetWidth();
 sh = Window.GetHeight();
 
-// Proportional scaling factor (1.0 at 1920x1200, never stretches aspect ratio)
-scale_x = sw / 1920.0;
-scale_y = sh / 1200.0;
-if (scale_x < scale_y)
+// 1. Scaled full-resolution background artwork (1920x1080 master)
+bg_raw = Image("background.png");
+bg_w = bg_raw.GetWidth();
+bg_h = bg_raw.GetHeight();
+
+// Proportional scale to fill the screen while preserving aspect ratio
+scale_x = sw / bg_w;
+scale_y = sh / bg_h;
+if (scale_x > scale_y)
     scale = scale_x;
 else
     scale = scale_y;
 
-// 1. Centered subtle glow behind logo
-glow_raw = Image("glow.png");
-glow_w = Math.Int(1200 * scale);
-glow_h = Math.Int(675 * scale);
-glow_img = glow_raw.Scale(glow_w, glow_h);
-glow_sprite = Sprite(glow_img);
-glow_sprite.SetPosition(sw / 2 - glow_w / 2, sh * 0.44 - glow_h / 2, -50);
+scaled_w = Math.Int(bg_w * scale);
+scaled_h = Math.Int(bg_h * scale);
+bg_img = bg_raw.Scale(scaled_w, scaled_h);
+bg_sprite = Sprite(bg_img);
+bg_sprite.SetPosition((sw - scaled_w) / 2, (sh - scaled_h) / 2, -100);
 
-// 2. Centered proportional LMPE emblem & typography
-logo_raw = Image("logo.png");
-logo_w = Math.Int(720 * scale);
-logo_h = Math.Int(logo_w * logo_raw.GetHeight() / logo_raw.GetWidth());
-logo_img = logo_raw.Scale(logo_w, logo_h);
-logo_sprite = Sprite(logo_img);
-logo_sprite.SetPosition(sw / 2 - logo_w / 2, sh * 0.44 - logo_h / 2, 10);
-
-// 3. Centered proportional rotating spinner below logo
+// 2. Centered rotating spinner below the typography in the designated dark area
 sp_raw = Image("spinner.png");
-sp_sz = Math.Int(64 * scale);
+sp_scale = scale;
+if (sp_scale < 0.6)
+    sp_scale = 0.6;
+sp_sz = Math.Int(48 * sp_scale);
 if (sp_sz < 32)
     sp_sz = 32;
+
 sp_img = sp_raw.Scale(sp_sz, sp_sz);
 sp_sprite = Sprite(sp_img);
+
+// Position spinner at ~82% of screen height (in the reserved dark space below TATOOINE)
 sp_sprite.SetPosition(sw / 2 - sp_sz / 2, sh * 0.82 - sp_sz / 2, 20);
 
 angle = 0;
