@@ -101,8 +101,8 @@ if os.path.exists(target_file):
         if cleaned:
             known.add(cleaned)
 
-# Paket-Ausschlüsse: Browser (vom Pi-OS-Repo bereitgestellt) oder reine x86-Proprietär-Pakete
-ignore = {"firefox", "chromium", "nemo-dropbox"}
+# Paket-Ausschlüsse: Browser (vom Pi-OS-Repo bereitgestellt), x86-Proprietär oder obsolete Alt-Pakete (LMDE 2/3)
+ignore = {"firefox", "chromium", "nemo-dropbox", "mint-info-debian", "mint-meta-debian"}
 
 discovered = []
 for comp in components:
@@ -312,6 +312,12 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
       USE_LTO=0
       export DEB_CFLAGS_MAINT_APPEND="$ARCH_FLAGS $OPT_LEVEL -Wno-error=array-bounds"
       export DEB_CXXFLAGS_MAINT_APPEND="$ARCH_FLAGS $OPT_LEVEL -Wno-error=array-bounds"
+      export DEB_LDFLAGS_MAINT_APPEND=""
+      ;;
+    onboard)
+      USE_LTO=0
+      export DEB_CFLAGS_MAINT_APPEND="$ARCH_FLAGS -std=gnu17 $OPT_LEVEL"
+      export DEB_CXXFLAGS_MAINT_APPEND="$ARCH_FLAGS -std=gnu17 $OPT_LEVEL"
       export DEB_LDFLAGS_MAINT_APPEND=""
       ;;
     xz-utils|tar|re2|gmp|libxcrypt|nettle|gnutls28|openssl|jemalloc|highway|icu|glib2.0|mesa|xwayland|librsvg|poppler|aom|svt-av1|jpeg-xl|libplacebo|alsa-lib|pulseaudio|pipewire|wireplumber|gstreamer1.0|gst-plugins-base1.0|gst-plugins-good1.0|gst-plugins-bad1.0|gst-plugins-ugly1.0|gst-libav1.0|ffmpeg|mpv|vlc|gtk+3.0|gtk4|python3.13|btop|imagemagick|ghostscript|gimp|inkscape|audacity)

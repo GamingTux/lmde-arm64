@@ -38,7 +38,10 @@ jobs:
             ca-certificates \
             git \
             jq \
-            xz-utils
+            xz-utils \
+            pkgconf \
+            cmake \
+            libpam0g-dev
 
       - name: Checkout repository
         uses: actions/checkout@v4
