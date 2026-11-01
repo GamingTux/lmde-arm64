@@ -85,7 +85,57 @@ EOF
 # Zu Beginn sofort den Index aus allen vorhandenen .deb-Dateien in pool/main synchronisieren
 update_local_apt_repo
 
-TOTAL="$(grep -vE '^\s*(#|$)' "$ROOT_DIR/packages.txt" | wc -l | xargs)"
+BUILD_QUEUE="/tmp/build_queue.txt"
+cp -f "$ROOT_DIR/packages.txt" "$BUILD_QUEUE"
+
+echo "[$(date -u '+%H:%M:%S')] 🔍 Starte Auto-Discovery Scanner für Linux Mint Quellpakete..."
+python3 - "$BUILD_QUEUE" << 'PYEOF' >> "$BUILD_QUEUE" || true
+import urllib.request, gzip, re, os, sys
+
+components = ["main", "backport", "upstream"]
+target_file = sys.argv[1] if len(sys.argv) > 1 else "/tmp/build_queue.txt"
+known = set()
+if os.path.exists(target_file):
+    for line in open(target_file):
+        cleaned = line.strip().split("#")[0].strip()
+        if cleaned:
+            known.add(cleaned)
+
+# Paket-Ausschlüsse: Browser (vom Pi-OS-Repo bereitgestellt) oder reine x86-Proprietär-Pakete
+ignore = {"firefox", "chromium", "nemo-dropbox"}
+
+discovered = []
+for comp in components:
+    url = f"http://packages.linuxmint.com/dists/gigi/{comp}/source/Sources.gz"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "LMPE-AutoDiscovery/1.0"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            content = gzip.decompress(resp.read()).decode("utf-8", errors="ignore")
+            for stanza in content.split("\n\n"):
+                if not stanza.strip(): continue
+                p = re.search(r"^Package:\s*(.+)$", stanza, re.MULTILINE)
+                a = re.search(r"^Architecture:\s*(.+)$", stanza, re.MULTILINE)
+                v = re.search(r"^Version:\s*(.+)$", stanza, re.MULTILINE)
+                if p and a and v:
+                    pkg = p.group(1).strip()
+                    arch = a.group(1).strip()
+                    ver = v.group(1).strip()
+                    if arch != "all" and ("any" in arch or "arm64" in arch):
+                        if pkg not in known and pkg not in ignore:
+                            discovered.append((pkg, ver, comp))
+                            known.add(pkg)
+    except Exception:
+        pass
+
+if discovered:
+    print("\n# --- Auto-Discovered Linux Mint Upstream Packages ---")
+    for pkg, ver, comp in discovered:
+        print(pkg)
+        sys.stderr.write(f"   ✨ Auto-Discovery: Neues Mint-Quellpaket erkannt: {pkg} ({ver} in {comp}) -> zur Build-Warteschlange hinzugefügt.\n")
+        sys.stderr.flush()
+PYEOF
+
+TOTAL="$(grep -vE '^\s*(#|$)' "$BUILD_QUEUE" | wc -l | xargs)"
 CURRENT=0
 BUILD_FAILED=0
 ALLOWED_SOURCES=()
@@ -235,9 +285,9 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
   LOG_FILE="/tmp/build-${pkg}.log"
   : > "$LOG_FILE"
 
-  # 1. Optimierungsstufe setzen (-O2 für Stufe 1 Cinnamon/XApps, -O3 für alle Stufe-0-Pakete)
+  # 1. Optimierungsstufe setzen (-O2 für Stufe 1 Cinnamon/XApps/Mint-Tools, -O3 für alle Stufe-0-Pakete)
   case "$pkg" in
-    xapp|cjs|cinnamon-menus|cinnamon-desktop|muffin|cinnamon-settings-daemon|cinnamon-control-center|cinnamon-screensaver|cinnamon-session|cinnamon|xdg-desktop-portal-xapp|xreader|nemo|nemo-python|nemo-fileroller|nemo-preview|nemo-share|nemo-emblems|nemo-image-converter|nemo-audio-tab|nemo-compare|nemo-media-columns|xed|xviewer|xviewer-plugins|pix|slick-greeter|mint-info-gigi)
+    xapp*|cjs*|cinnamon*|muffin*|nemo*|xed*|xviewer*|pix*|slick-greeter*|mint*|timeshift*|warpinator*|fingwit*|gnome*|libadwaita*|packagekit*|onboard*|fcitx*|file-roller*|xenity*)
       OPT_LEVEL="-O2"
       ;;
     *)
@@ -511,4 +561,5 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
   echo "[$(date -u '+%H:%M:%S')] ✅ [$CURRENT/$TOTAL] $pkg fertig gebaut in ${DURATION}s"
   echo "| $CURRENT/$TOTAL | \`$pkg\` | \`$TARGET_VER\` | \`$OPT_LEVEL\` | ✅ Gebaut | ${DURATION}s |" >> "$SUMMARY_FILE"
 
-done 3< "$ROOT_DIR/packages.txt"
+done 3< "$BUILD_QUEUE"
+rm -f "$BUILD_QUEUE"
