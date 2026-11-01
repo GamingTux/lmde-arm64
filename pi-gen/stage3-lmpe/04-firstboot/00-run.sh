@@ -2,11 +2,12 @@
 
 install -d -m 755 "${ROOTFS_DIR}/usr/local/sbin" "${ROOTFS_DIR}/etc/systemd/system" "${ROOTFS_DIR}/etc/systemd/journald.conf.d"
 
-# Persistente systemd-Logs aktivieren, damit Fehler bei Neustarts nicht im RAM verloren gehen
+# Persistente systemd-Logs mit Speicherbegrenzung aktivieren
 cat << 'JCONF' > "${ROOTFS_DIR}/etc/systemd/journald.conf.d/00-persistent.conf"
 [Journal]
 Storage=persistent
-SystemMaxUse=200M
+SystemMaxUse=100M
+RuntimeMaxUse=50M
 JCONF
 install -d -m 2755 "${ROOTFS_DIR}/var/log/journal"
 

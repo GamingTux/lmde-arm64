@@ -65,10 +65,12 @@ echo "tcp_bbr" > "${ROOTFS_DIR}/etc/modules-load.d/bbr.conf"
 
 install -d -m 755 "${ROOTFS_DIR}/etc/sysctl.d"
 cat << 'EOF' > "${ROOTFS_DIR}/etc/sysctl.d/99-lmpe-pi5.conf"
-vm.swappiness = 100
+vm.swappiness = 180
+vm.page-cluster = 0
 vm.vfs_cache_pressure = 50
 vm.dirty_background_ratio = 5
 vm.dirty_ratio = 10
+fs.inotify.max_user_watches = 524288
 net.core.default_qdisc = fq
 net.core.rps_sock_flow_entries = 32768
 net.ipv4.tcp_congestion_control = bbr
@@ -138,9 +140,11 @@ EOF
 chmod 755 "${ROOTFS_DIR}/usr/sbin/lmpe-runtime-tune"
 
 cat << 'EOF' > "${ROOTFS_DIR}/etc/udev/rules.d/90-lmpe-runtime.rules"
-# Optimal I/O Scheduler, Read-Ahead & Core Queue Affinity for NVMe SSDs and eMMC/SD/USB storage
+# Optimal I/O Scheduler, Read-Ahead & Core Queue Affinity for NVMe SSDs, eMMC/SD & USB storage
 ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="disk", KERNEL=="nvme[0-9]*n[0-9]*", ATTR{queue/scheduler}="none", ATTR{queue/read_ahead_kb}="512", ATTR{queue/rq_affinity}="2"
-ACTION=="add|change", KERNEL=="mmcblk[0-9]*|sd[a-z]", ATTR{queue/scheduler}="mq-deadline", ATTR{queue/read_ahead_kb}="256", ATTR{queue/rq_affinity}="2"
+ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="disk", KERNEL=="mmcblk[0-9]*", ATTR{queue/scheduler}="mq-deadline", ATTR{queue/read_ahead_kb}="256", ATTR{queue/rq_affinity}="2"
+ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="disk", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="1", ATTR{queue/scheduler}="bfq", ATTR{queue/rq_affinity}="2"
+ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="disk", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="mq-deadline", ATTR{queue/read_ahead_kb}="256", ATTR{queue/rq_affinity}="2"
 
 # 4-Core Receive Packet Steering (RPS/RFS) on network interfaces
 ACTION=="add", SUBSYSTEM=="net", KERNEL=="wlan*|eth*", ATTR{queues/rx-0/rps_cpus}="f", ATTR{queues/rx-0/rps_flow_cnt}="4096"
@@ -223,6 +227,6 @@ on_chroot <<- \EOF
 
 	systemctl enable lightdm irqbalance.service systemd-resolved.service fstrim.timer bluetooth.service || true
 	systemctl disable glamor-test.service rp1-test.service e2scrub_reap.service e2scrub_all.timer rpi-eeprom-update.service ModemManager.service nfs-blkmap.service rpc-statd-notify.service 2>/dev/null || true
-	systemctl mask NetworkManager-wait-online.service rpcbind.service rpcbind.socket serial-getty@ttyAMA10.service 2>/dev/null || true
+	systemctl mask NetworkManager-wait-online.service systemd-networkd-wait-online.service rpcbind.service rpcbind.socket serial-getty@ttyAMA10.service 2>/dev/null || true
 	systemctl set-default graphical.target
 EOF
