@@ -1,5 +1,5 @@
 Package: lmpe-theme
-Version: 1.0+pi5
+Version: 1.1+pi5
 Section: x11
 Priority: optional
 Architecture: all
@@ -9,5 +9,5 @@ Recommends: lightdm, slick-greeter
 Homepage: https://github.com/GamingTux/lmde-arm64
 Description: Artwork, Plymouth bootscreens and wallpapers for LMPE
  Official branding artwork for Linux Mint Pi Edition (LMPE), including
- high-resolution Plymouth bootscreen (Tatooine Edition), desktop
+ high-resolution Plymouth bootscreen (Picard Edition), desktop
  wallpapers, and native Cinnamon background properties.
