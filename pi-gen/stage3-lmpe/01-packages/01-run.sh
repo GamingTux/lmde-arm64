@@ -213,21 +213,11 @@ cat << 'EOF' > "${ROOTFS_DIR}/etc/systemd/system/lightdm.service.d/plymouth.conf
 After=plymouth-quit.service
 EOF
 
-# 13. Argon ONE UP Hardware-Pakete (Battery, Lid, Backlight + ddcci-dkms) installieren
-install -d -m 755 "${ROOTFS_DIR}/tmp/argon-debs"
-cp files/debs/*.deb "${ROOTFS_DIR}/tmp/argon-debs/"
+# 13. Argon ONE UP Hardware-Pakete für First-Boot Staging bereitstellen (Installation nur bei Auswahl)
+install -d -m 755 "${ROOTFS_DIR}/usr/share/argon-debs"
+cp files/debs/*.deb "${ROOTFS_DIR}/usr/share/argon-debs/"
 
 on_chroot <<- \EOF
-	if compgen -G "/tmp/argon-debs/*.deb" > /dev/null; then
-		dpkg -i --force-confnew /tmp/argon-debs/*.deb || apt-get install -fy
-		rm -rf /tmp/argon-debs
-	fi
-	for KPATH in /lib/modules/*+rpt-rpi-*; do
-		[ -d "$KPATH/build" ] || continue
-		KVER=$(basename "$KPATH")
-		dkms autoinstall -k "$KVER" || true
-		depmod -a "$KVER"
-	done
 	plymouth-set-default-theme lmpe || true
 	flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo || true
 	glib-compile-schemas /usr/share/glib-2.0/schemas || true

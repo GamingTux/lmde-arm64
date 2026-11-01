@@ -1,32 +1,12 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0-or-later
-# lmpe-config-hardware — Switch and detect hardware profiles for LMPE
+# lmpe-config-hardware — Switch hardware profiles for LMPE
 # Supported profiles: 'generic' (Standard Raspberry Pi 5) and 'argon' (Argon ONE UP CM5 Laptop)
 set -euo pipefail
 
 CONFIG_TXT="/boot/firmware/config.txt"
 [ -f "$CONFIG_TXT" ] || CONFIG_TXT="/boot/config.txt"
 PROFILE_FILE="/etc/lmpe-hardware-profile"
-
-detect_hardware() {
-    # 1. Driver/device already registered in sysfs?
-    if [ -d /sys/bus/i2c/devices/1-0064 ] || [ -d /sys/class/power_supply/BAT0 ]; then
-        return 0
-    fi
-    # 2. Check if I2C-1 address 0x64 (TI battery controller) responds directly
-    if python3 -c 'import smbus2; b=smbus2.SMBus(1); b.read_byte_data(0x64, 0x00, force=True)' 2>/dev/null; then
-        return 0
-    fi
-    # 3. Check for internal Argon keyboard/touchpad USB controller
-    if grep -q "AMIRA-KEYBOAR" /proc/bus/input/devices 2>/dev/null; then
-        return 0
-    fi
-    # 4. Check for Argon lid switch input device
-    if grep -q 'Name="lid_switch"' /proc/bus/input/devices 2>/dev/null; then
-        return 0
-    fi
-    return 1
-}
 
 apply_argon_profile() {
     echo "=== Aktiviere Argon ONE UP CM5 Laptop Hardware-Profil ==="
@@ -164,15 +144,6 @@ show_status() {
 }
 
 case "${1:-}" in
-    --detect|-d)
-        if detect_hardware; then
-            echo "argon"
-            exit 0
-        else
-            echo "generic"
-            exit 1
-        fi
-        ;;
     --argon|-a|argon)
         [ "$(id -u)" -eq 0 ] || { echo "Fehler: Bitte als root (sudo) ausführen." >&2; exit 1; }
         apply_argon_profile
@@ -185,8 +156,7 @@ case "${1:-}" in
         show_status
         ;;
     *)
-        echo "Verwendung: lmpe-config-hardware {--detect|--argon|--generic|--status}"
-        echo "  --detect    Prüft, ob Argon ONE UP Hardware angeschlossen ist (Exitcode 0=Ja, 1=Nein)"
+        echo "Verwendung: lmpe-config-hardware {--argon|--generic|--status}"
         echo "  --argon     Aktiviert das Argon ONE UP CM5 Laptop Profil"
         echo "  --generic   Aktiviert das Standard Raspberry Pi 5 Profil"
         echo "  --status    Zeigt das aktuell aktive Profil an"

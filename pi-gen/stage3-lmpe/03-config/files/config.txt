@@ -6,11 +6,6 @@ dtparam=i2c_arm=on
 dtparam=uart0=on
 arm_64bit=1
 
-# --- Performance & PCIe / NVMe ---
-dtparam=nvme
-dtparam=pciex1_gen=3
-usb_max_current_enable=1
-
 # --- Display, Grafik & Boot ---
 dtoverlay=vc4-kms-v3d
 max_framebuffers=2
