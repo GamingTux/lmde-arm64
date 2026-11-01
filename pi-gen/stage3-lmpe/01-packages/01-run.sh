@@ -61,11 +61,27 @@ net.ipv4.tcp_congestion_control = bbr
 net.ipv4.tcp_fastopen = 3
 EOF
 
-# 5. Standard-Webbrowser auf Firefox setzen & Chromium-Fallback-Flags vorbereiten
+# 5. Standard-Webbrowser auf Firefox setzen, GPU-WebRender & Codec-Tuning konfigurieren
 on_chroot << 'EOF'
 update-alternatives --set x-www-browser /usr/bin/firefox || true
 update-alternatives --set gnome-www-browser /usr/bin/firefox || true
 EOF
+
+install -d -m 755 "${ROOTFS_DIR}/etc/firefox" "${ROOTFS_DIR}/usr/lib/firefox/browser/defaults/preferences"
+cat << 'EOF' > "${ROOTFS_DIR}/etc/firefox/99-lmpe-pi5.js"
+// LMPE Raspberry Pi 5 GPU- & Codec-Optimierungen für Firefox
+pref("gfx.webrender.all", true);
+pref("layers.acceleration.force-enabled", true);
+pref("widget.dmabuf.textures", true);
+pref("media.ffmpeg.vaapi.enabled", true);
+pref("media.rdd-ffmpeg.enabled", true);
+pref("media.ffvpx.enabled", false);
+pref("media.av1.enabled", true);
+pref("media.mediasource.vp9.enabled", true);
+pref("media.webm.enabled", true);
+EOF
+cp "${ROOTFS_DIR}/etc/firefox/99-lmpe-pi5.js" "${ROOTFS_DIR}/usr/lib/firefox/browser/defaults/preferences/99-lmpe-pi5.js" 2>/dev/null || true
+
 install -d -m 755 "${ROOTFS_DIR}/etc/chromium.d"
 echo 'export CHROMIUM_FLAGS="$CHROMIUM_FLAGS --enable-remote-extensions"' > "${ROOTFS_DIR}/etc/chromium.d/00-rpi-vars"
 cat << 'EOF' > "${ROOTFS_DIR}/etc/chromium.d/99-lmpe-pi5"

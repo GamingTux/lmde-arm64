@@ -80,8 +80,22 @@ apt-get install -y \
   htop \
   fastfetch
 
-echo ">>> [6/6] Configuring LightDM with Slick Greeter..."
-mkdir -p /etc/lightdm/lightdm.conf.d
+echo ">>> [6/6] Configuring LightDM with Slick Greeter and Firefox GPU acceleration..."
+mkdir -p /etc/lightdm/lightdm.conf.d /etc/firefox /usr/lib/firefox/browser/defaults/preferences
+cat << 'EOF' > /etc/firefox/99-lmpe-pi5.js
+// LMPE Raspberry Pi 5 GPU- & Codec-Optimierungen für Firefox
+pref("gfx.webrender.all", true);
+pref("layers.acceleration.force-enabled", true);
+pref("widget.dmabuf.textures", true);
+pref("media.ffmpeg.vaapi.enabled", true);
+pref("media.rdd-ffmpeg.enabled", true);
+pref("media.ffvpx.enabled", false);
+pref("media.av1.enabled", true);
+pref("media.mediasource.vp9.enabled", true);
+pref("media.webm.enabled", true);
+EOF
+cp /etc/firefox/99-lmpe-pi5.js /usr/lib/firefox/browser/defaults/preferences/99-lmpe-pi5.js 2>/dev/null || true
+
 cat << 'EOF' > /etc/lightdm/lightdm.conf.d/90-slick-greeter.conf
 [Seat:*]
 greeter-session=slick-greeter
