@@ -189,13 +189,16 @@ on_chroot <<- \EOF
 	flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo || true
 	glib-compile-schemas /usr/share/glib-2.0/schemas || true
 	apt-get remove -y xserver-xorg-video-fbdev || true
-	# 14. Boot-Optimierungen: Pure ZRAM (kein /var/swap Verschleiß), EEPROM-OneShot & unblocktes Backlight
+	# 14. Boot-Optimierungen: Dynamic ZRAM (kein /var/swap Verschleiß), EEPROM-OneShot & unblocktes Backlight
 	install -d -m 755 /etc/rpi
 	cat <<- 'SWAPCONF' > /etc/rpi/swap.conf
+	# LMPE Dynamic ZRAM Swap Configuration
+	# Scales dynamically with physical RAM: Size = min(RAM * RamMultiplier, MaxSizeMiB)
 	[Main]
 	Mechanism=zram
 
 	[Zram]
+	RamMultiplier=1
 	MaxSizeMiB=4096
 
 	[File]
