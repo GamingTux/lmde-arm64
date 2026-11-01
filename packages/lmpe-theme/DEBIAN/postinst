@@ -1,0 +1,36 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    configure)
+        # Ensure default symlinks exist
+        if [ ! -e /usr/share/backgrounds/lmpe/default.png ]; then
+            (cd /usr/share/backgrounds/lmpe && ln -sf tatooine.png default.png) 2>/dev/null || true
+        fi
+
+        if [ ! -e /usr/share/plymouth/themes/lmpe/background.png ]; then
+            (cd /usr/share/plymouth/themes/lmpe && ln -sf backgrounds/tatooine.png background.png) 2>/dev/null || true
+        fi
+
+        # Compile GLib schemas so GSettings defaults apply
+        if command -v glib-compile-schemas >/dev/null 2>&1; then
+            glib-compile-schemas /usr/share/glib-2.0/schemas 2>/dev/null || true
+        fi
+
+        # Reload systemd if daemon is active
+        if [ -d /run/systemd/system ]; then
+            systemctl daemon-reload 2>/dev/null || true
+        fi
+
+        # Activate Plymouth theme and update initramfs
+        if command -v plymouth-set-default-theme >/dev/null 2>&1; then
+            plymouth-set-default-theme lmpe 2>/dev/null || true
+            if command -v update-initramfs >/dev/null 2>&1; then
+                echo "lmpe-theme: Updating initramfs with LMPE bootscreen..."
+                update-initramfs -u 2>/dev/null || true
+            fi
+        fi
+        ;;
+esac
+
+exit 0

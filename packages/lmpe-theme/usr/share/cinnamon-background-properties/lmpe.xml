@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<!DOCTYPE wallpapers SYSTEM "cinnamon-wp-list.dtd">
+<wallpapers>
+  <wallpaper deleted="false">
+    <name>LMPE Tatooine</name>
+    <filename>/usr/share/backgrounds/lmpe/tatooine.png</filename>
+    <options>zoom</options>
+    <shade_type>solid</shade_type>
+    <pcolor>#090b10</pcolor>
+    <scolor>#090b10</scolor>
+    <artist>LMPE Artwork Team</artist>
+  </wallpaper>
+  <wallpaper deleted="false">
+    <name>LMPE Felucia</name>
+    <filename>/usr/share/backgrounds/lmpe/felucia.png</filename>
+    <options>zoom</options>
+    <shade_type>solid</shade_type>
+    <pcolor>#090b10</pcolor>
+    <scolor>#090b10</scolor>
+    <artist>LMPE Artwork Team</artist>
+  </wallpaper>
+  <wallpaper deleted="false">
+    <name>LMPE Wayland</name>
+    <filename>/usr/share/backgrounds/lmpe/wayland.png</filename>
+    <options>zoom</options>
+    <shade_type>solid</shade_type>
+    <pcolor>#0b0d13</pcolor>
+    <scolor>#0b0d13</scolor>
+    <artist>LMPE Artwork Team</artist>
+  </wallpaper>
+  <wallpaper deleted="false">
+    <name>LMPE Picard Tribute</name>
+    <filename>/usr/share/backgrounds/lmpe/picard.png</filename>
+    <options>zoom</options>
+    <shade_type>solid</shade_type>
+    <pcolor>#050811</pcolor>
+    <scolor>#050811</scolor>
+    <artist>LMPE Artwork Team</artist>
+  </wallpaper>
+</wallpapers>

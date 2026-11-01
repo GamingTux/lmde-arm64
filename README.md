@@ -47,6 +47,9 @@ Just as Debian names its releases after *Toy Story* characters and Ubuntu after 
 * **Where the Saga Begins:** In the Star Wars universe, Tatooine is the legendary desert world where epic journeys begin. For LMPE, *Tatooine* marks our first official universal release: resilient, dependable, and built to venture across any Raspberry Pi 5 and Compute Module 5 platform.
 * **The Twin Suns:** Tatooine's dual suns are reflected in our official branding—one glowing in Linux Mint emerald green, the other in Raspberry/Debian crimson.
 * **Dual Artwork Standard:** Every LMPE release features a coordinated artwork duo: an atmospheric Plymouth vector boot splash with boot spinner and a matching, distraction-free desktop wallpaper.
+* **Modular Theme Packaging (`lmpe-theme`):** All wallpapers, Plymouth boot splash themes, and Cinnamon background properties are packaged into the official `lmpe-theme` Debian package. Users receive new bootscreens and artwork via standard `apt upgrade` or `mintupdate` without flashing a new OS image.
+* **User Customization Protection:** Package updates will **never** overwrite a personalized wallpaper selected by the user (guaranteed by dconf user-level precedence over GSettings system schema defaults).
+* **Artwork Switcher CLI & Cinnamon GUI Integration:** Switch bootscreens and default artwork with `sudo lmpe-theme set <name>` or choose from the dedicated "LMPE" category directly inside Cinnamon's *System Settings → Backgrounds*.
 
 ---
 
@@ -223,6 +226,27 @@ You can update your system using the graphical Linux Mint Update Manager (<code>
 ```bash
 sudo apt update && sudo apt full-upgrade
 ```
+</details>
+
+<details>
+<summary><b>How do I switch or update bootscreens and wallpapers?</b></summary>
+Bootscreens and wallpapers are managed by the official <code>lmpe-theme</code> Debian package.
+
+1. <b>Graphical Selection:</b> Open <b>System Settings → Backgrounds</b> in Cinnamon and select the <b>LMPE</b> category to view all release wallpapers.
+2. <b>List Available Themes via CLI:</b>
+   ```bash
+   lmpe-theme list
+   ```
+3. <b>Change the Bootscreen & System Default Wallpaper:</b>
+   ```bash
+   sudo lmpe-theme set <name>    # Options: tatooine, felucia, wayland, picard
+   ```
+   *(This automatically regenerates the initramfs and installs the bootscreen into <code>/boot/firmware</code>).*
+4. <b>Change Desktop Wallpaper for Current User Only:</b>
+   ```bash
+   lmpe-theme apply <name>
+   ```
+Whenever new themes or bootscreens are released, they are delivered directly over-the-air via <code>sudo apt update && sudo apt upgrade</code>.
 </details>
 
 <details>

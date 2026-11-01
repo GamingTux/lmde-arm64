@@ -8,12 +8,6 @@ user-session=cinnamon
 greeter-hide-users=false
 EOF
 
-cat << 'EOF' > "${ROOTFS_DIR}/etc/lightdm/slick-greeter.conf"
-[Greeter]
-background=/usr/share/backgrounds/lmpe/default.png
-show-hostname=true
-EOF
-
 install -d -m 755 "${ROOTFS_DIR}/etc/X11/xorg.conf.d" "${ROOTFS_DIR}/usr/share/X11/xorg.conf.d"
 cat << 'EOF' > "${ROOTFS_DIR}/etc/X11/xorg.conf.d/99-v3d.conf"
 Section "OutputClass"
@@ -36,15 +30,8 @@ Section "InputClass"
 EndSection
 EOF
 
-install -d -m 755 "${ROOTFS_DIR}/usr/share/backgrounds/lmpe"
-cp -a files/backgrounds/* "${ROOTFS_DIR}/usr/share/backgrounds/lmpe/"
-
 install -d -m 755 "${ROOTFS_DIR}/usr/share/glib-2.0/schemas"
-cat << 'EOF' > "${ROOTFS_DIR}/usr/share/glib-2.0/schemas/99-lmpe.gschema.override"
-[org.cinnamon.desktop.background]
-picture-uri='file:///usr/share/backgrounds/lmpe/default.png'
-picture-options='zoom'
-
+cat << 'EOF' > "${ROOTFS_DIR}/usr/share/glib-2.0/schemas/99-lmpe-touchpad.gschema.override"
 [org.cinnamon.desktop.peripherals.touchpad]
 tap-to-click=true
 click-method='fingers'
@@ -53,7 +40,7 @@ click-method='fingers'
 tap-to-click=true
 click-method='fingers'
 EOF
-rm -f "${ROOTFS_DIR}/usr/share/glib-2.0/schemas/99-lmpe-touchpad.gschema.override"
+rm -f "${ROOTFS_DIR}/usr/share/glib-2.0/schemas/99-lmpe.gschema.override"
 
 # 3. CPU-Governor auf schedutil setzen
 install -d -m 755 "${ROOTFS_DIR}/etc/udev/rules.d"
@@ -185,28 +172,17 @@ EOF
 rm -f "${ROOTFS_DIR}/etc/resolv.conf"
 cp /etc/resolv.conf "${ROOTFS_DIR}/etc/resolv.conf"
 
-# 10. Eigenes LMPE Plymouth Boot-Theme installieren & nahtlosen Übergang zu LightDM konfigurieren
-install -d -m 755 "${ROOTFS_DIR}/usr/share/plymouth/themes/lmpe"
-cp -a files/plymouth/lmpe/* "${ROOTFS_DIR}/usr/share/plymouth/themes/lmpe/"
-
-install -m 755 files/lmpe-theme "${ROOTFS_DIR}/usr/bin/lmpe-theme"
-
-install -d -m 755 "${ROOTFS_DIR}/etc/systemd/system/plymouth-quit.service.d"
-cat << 'EOF' > "${ROOTFS_DIR}/etc/systemd/system/plymouth-quit.service.d/retain-splash.conf"
-[Service]
-ExecStart=
-ExecStart=-/usr/bin/plymouth quit --retain-splash
-EOF
-
-install -d -m 755 "${ROOTFS_DIR}/etc/systemd/system/lightdm.service.d"
-cat << 'EOF' > "${ROOTFS_DIR}/etc/systemd/system/lightdm.service.d/plymouth.conf"
-[Unit]
-After=plymouth-quit.service
+# 10. Offizielles LMPE Artwork-, Bootscreen- & Theme-Paket installieren
+install -d -m 755 "${ROOTFS_DIR}/tmp/lmpe-theme"
+cp files/debs/lmpe-theme_*.deb "${ROOTFS_DIR}/tmp/lmpe-theme/"
+on_chroot <<- \EOF
+	dpkg -i --force-confnew /tmp/lmpe-theme/lmpe-theme_*.deb || apt-get install -fy
+	rm -rf /tmp/lmpe-theme
 EOF
 
 # 13. Argon ONE UP Hardware-Pakete für First-Boot Staging bereitstellen (Installation nur bei Auswahl)
 install -d -m 755 "${ROOTFS_DIR}/usr/share/argon-debs"
-cp files/debs/*.deb "${ROOTFS_DIR}/usr/share/argon-debs/"
+cp files/debs/argon-oneup-*.deb "${ROOTFS_DIR}/usr/share/argon-debs/"
 
 on_chroot <<- \EOF
 	plymouth-set-default-theme lmpe || true

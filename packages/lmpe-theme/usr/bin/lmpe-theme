@@ -1,0 +1,183 @@
+#!/bin/bash
+set -euo pipefail
+
+THEMES_DIR="/usr/share/plymouth/themes/lmpe/backgrounds"
+WALLPAPER_DIR="/usr/share/backgrounds/lmpe"
+PLYMOUTH_BG="/usr/share/plymouth/themes/lmpe/background.png"
+WALLPAPER_DEF="/usr/share/backgrounds/lmpe/default.png"
+
+show_help() {
+    cat << 'EOF'
+LMPE Theme & Artwork Manager (Linux Mint Pi Edition)
+
+Usage:
+  sudo lmpe-theme set <name>   Switch system bootscreen & default wallpaper
+  lmpe-theme apply <name>      Set wallpaper for current desktop user only
+  lmpe-theme list              List all available LMPE themes and wallpapers
+  lmpe-theme current           Show active bootscreen and default wallpaper
+  lmpe-theme --help            Show this help dialog
+
+Available Themes:
+EOF
+    if [ -d "$THEMES_DIR" ]; then
+        for f in "$THEMES_DIR"/*.png; do
+            [ -f "$f" ] && echo "  - $(basename "$f" .png)"
+        done
+    fi
+}
+
+cmd="${1:-}"
+
+case "$cmd" in
+    list)
+        echo "=========================================================="
+        echo "          LMPE Official Themes & Wallpapers               "
+        echo "=========================================================="
+        if [ -d "$THEMES_DIR" ]; then
+            for f in "$THEMES_DIR"/*.png; do
+                [ -f "$f" ] || continue
+                name="$(basename "$f" .png)"
+                desc=""
+                case "$name" in
+                    tatooine) desc="Desert Dune Sea & Twin Suns (Official 2026 Release)" ;;
+                    felucia)  desc="Bioluminescent Fungal World (Neon Flora)" ;;
+                    wayland)  desc="Mount Tantiss Geometric Peaks (Cybernetic Vista)" ;;
+                    picard)   desc="Deep Space Nebula & Galaxy Tribute" ;;
+                    *)        desc="Custom artwork" ;;
+                esac
+                printf "  * %-12s - %s\n" "$name" "$desc"
+            done
+        else
+            echo "Error: Theme directory not found at $THEMES_DIR" >&2
+            exit 1
+        fi
+        echo ""
+        echo "Run 'sudo lmpe-theme set <name>' to activate system-wide."
+        exit 0
+        ;;
+
+    current)
+        echo "LMPE Current Artwork Status:"
+        if [ -L "$PLYMOUTH_BG" ]; then
+            target=$(readlink -f "$PLYMOUTH_BG" 2>/dev/null || readlink "$PLYMOUTH_BG")
+            echo "  Bootscreen:        $(basename "$target" .png)"
+        elif [ -f "$PLYMOUTH_BG" ]; then
+            echo "  Bootscreen:        Static file (not symlinked)"
+        else
+            echo "  Bootscreen:        Not installed"
+        fi
+
+        if [ -L "$WALLPAPER_DEF" ]; then
+            wptarget=$(readlink -f "$WALLPAPER_DEF" 2>/dev/null || readlink "$WALLPAPER_DEF")
+            echo "  Default Wallpaper: $(basename "$wptarget" .png)"
+        elif [ -f "$WALLPAPER_DEF" ]; then
+            echo "  Default Wallpaper: Static file (not symlinked)"
+        else
+            echo "  Default Wallpaper: Not installed"
+        fi
+
+        if command -v gsettings >/dev/null 2>&1 && [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
+            user_wp=$(gsettings get org.cinnamon.desktop.background picture-uri 2>/dev/null || true)
+            if [ -n "$user_wp" ]; then
+                echo "  User Wallpaper:    $user_wp"
+            fi
+        fi
+        exit 0
+        ;;
+
+    apply)
+        theme="${2:-}"
+        if [ -z "$theme" ]; then
+            echo "Error: Please specify a theme name (e.g. 'lmpe-theme apply tatooine')." >&2
+            exit 1
+        fi
+        wp_path="$WALLPAPER_DIR/${theme}.png"
+        if [ ! -f "$wp_path" ]; then
+            echo "Error: Wallpaper '$theme' not found in $WALLPAPER_DIR." >&2
+            exit 1
+        fi
+
+        if command -v gsettings >/dev/null 2>&1; then
+            gsettings set org.cinnamon.desktop.background picture-uri "file://$wp_path"
+            echo ">>> User desktop wallpaper successfully set to '${theme}'."
+        else
+            echo "Error: gsettings tool not found in PATH." >&2
+            exit 1
+        fi
+        exit 0
+        ;;
+
+    set)
+        theme="${2:-}"
+        if [ -z "$theme" ]; then
+            echo "Error: Please specify a theme name (e.g. 'sudo lmpe-theme set tatooine')." >&2
+            exit 1
+        fi
+        if [ "$(id -u)" -ne 0 ]; then
+            echo "Error: 'set' modifies system files. Please run with sudo:" >&2
+            echo "       sudo lmpe-theme set $theme" >&2
+            exit 1
+        fi
+
+        if [ ! -f "$THEMES_DIR/${theme}.png" ]; then
+            echo "Error: Theme '${theme}' not found in $THEMES_DIR." >&2
+            echo "Available themes: $(ls -1 "$THEMES_DIR" 2>/dev/null | sed 's/\.png$//' | tr '\n' ' ')" >&2
+            exit 1
+        fi
+
+        echo ">>> Switching LMPE bootscreen to '${theme}'..."
+        ln -sf "backgrounds/${theme}.png" "$PLYMOUTH_BG"
+
+        if [ -f "$WALLPAPER_DIR/${theme}.png" ]; then
+            ln -sf "${theme}.png" "$WALLPAPER_DEF"
+            echo ">>> System default wallpaper updated to '${theme}'."
+            echo "    (Note: Any customized personal wallpaper set in Cinnamon remains untouched)."
+        fi
+
+        echo ">>> Updating initramfs (baking new bootscreen into boot image)..."
+        if command -v update-initramfs >/dev/null 2>&1; then
+            update-initramfs -u
+        fi
+        echo ">>> Success! LMPE bootscreen and system default artwork set to '${theme}'."
+        exit 0
+        ;;
+
+    help|--help|-h)
+        show_help
+        exit 0
+        ;;
+
+    "")
+        show_help
+        exit 1
+        ;;
+
+    *)
+        # Backward compatibility: if user just called 'sudo lmpe-theme <theme>'
+        if [ -f "$THEMES_DIR/${cmd}.png" ]; then
+            if [ "$(id -u)" -ne 0 ]; then
+                echo "Error: Please run with sudo (e.g. sudo lmpe-theme $cmd)" >&2
+                exit 1
+            fi
+            echo ">>> Switching LMPE bootscreen to '${cmd}'..."
+            ln -sf "backgrounds/${cmd}.png" "$PLYMOUTH_BG"
+
+            if [ -f "$WALLPAPER_DIR/${cmd}.png" ]; then
+                ln -sf "${cmd}.png" "$WALLPAPER_DEF"
+                echo ">>> System default wallpaper updated to '${cmd}'."
+                echo "    (Note: Any customized personal wallpaper set in Cinnamon remains untouched)."
+            fi
+
+            echo ">>> Updating initramfs (baking new bootscreen into boot image)..."
+            if command -v update-initramfs >/dev/null 2>&1; then
+                update-initramfs -u
+            fi
+            echo ">>> Success! Bootscreen and default artwork set to '${cmd}'."
+            exit 0
+        else
+            echo "Error: Unknown command or theme '$cmd'." >&2
+            show_help
+            exit 1
+        fi
+        ;;
+esac

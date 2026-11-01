@@ -1,0 +1,15 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    remove)
+        if command -v plymouth-set-default-theme >/dev/null 2>&1; then
+            cur="$(plymouth-set-default-theme 2>/dev/null || true)"
+            if [ "$cur" = "lmpe" ]; then
+                plymouth-set-default-theme spinner 2>/dev/null || plymouth-set-default-theme text 2>/dev/null || true
+            fi
+        fi
+        ;;
+esac
+
+exit 0

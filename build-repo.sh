@@ -91,6 +91,24 @@ BUILD_FAILED=0
 ALLOWED_SOURCES=()
 FINALIZED=0
 
+# Lokale LMPE-Pakete aus packages/ automatisch bauen, in pool/main bereitstellen und schützen
+if [[ -d "$ROOT_DIR/packages" ]]; then
+  for pkg_dir in "$ROOT_DIR"/packages/*; do
+    [[ -d "$pkg_dir/DEBIAN" ]] || continue
+    pkg_name="$(grep -i '^Package:' "$pkg_dir/DEBIAN/control" | awk '{print $2}')"
+    pkg_ver="$(grep -i '^Version:' "$pkg_dir/DEBIAN/control" | awk '{print $2}')"
+    pkg_arch="$(grep -i '^Architecture:' "$pkg_dir/DEBIAN/control" | awk '{print $2}')"
+    target_deb="$REPO_DIR/pool/main/${pkg_name}_${pkg_ver}_${pkg_arch}.deb"
+
+    echo "📦 Baue lokales Debian-Paket ${pkg_name} (${pkg_ver})..."
+    dpkg-deb --root-owner-group -b "$pkg_dir" "$target_deb" >/dev/null
+    ALLOWED_SOURCES+=("$pkg_name")
+  done
+  # Staging-DEBs für Argon ONE UP ebenfalls schützen, falls im Pool vorhanden
+  ALLOWED_SOURCES+=("argon-oneup-essentials" "argon-oneup-battery" "argon-oneup-suite" "argon-oneup-power-profiles" "argon-oneup-sensors" "argon-oneup-lid" "argon-oneup-backlight")
+  update_local_apt_repo
+fi
+
 finalize_and_sign_repo() {
   [[ "$FINALIZED" -eq 1 ]] && return 0
   FINALIZED=1

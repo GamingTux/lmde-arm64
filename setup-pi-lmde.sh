@@ -76,6 +76,9 @@ apt-get install -y \
   firefox \
   rpi-firefox-mods \
   ffmpegthumbnailer \
+  plymouth \
+  plymouth-themes \
+  lmpe-theme \
   btop \
   htop \
   fastfetch
