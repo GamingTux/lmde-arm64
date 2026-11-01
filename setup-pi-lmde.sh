@@ -83,7 +83,7 @@ apt-get install -y \
 echo ">>> [6/6] Configuring LightDM with Slick Greeter and Firefox GPU acceleration..."
 mkdir -p /etc/lightdm/lightdm.conf.d /etc/firefox /usr/lib/firefox/browser/defaults/preferences
 cat << 'EOF' > /etc/firefox/99-lmpe-pi5.js
-// LMPE Raspberry Pi 5 GPU- & Codec-Optimierungen für Firefox
+// LMPE Raspberry Pi 5 GPU & Codec Optimizations for Firefox
 pref("gfx.webrender.all", true);
 pref("layers.acceleration.force-enabled", true);
 pref("media.ffmpeg.vaapi.enabled", false);
