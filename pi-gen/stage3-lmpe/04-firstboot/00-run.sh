@@ -245,7 +245,7 @@ fi
 HW_CHOICE=$(whiptail --title "LMPE First-Boot Setup (6/7) - Hardware Profile" \
     --menu "Please select the hardware profile for this system:" 14 70 2 \
     "generic" "Standard Raspberry Pi 5 / Compute Module 5 (Universal)" \
-    "argon"   "Argon ONE UP Laptop (Display backlight, battery & fan drivers)" \
+    "argon"   "Argon ONE UP Laptop (Battery, suspend, display, fan & CM5 fixes)" \
     3>&1 1>&2 2>&3) || HW_CHOICE="generic"
 
 if [ "$HW_CHOICE" = "argon" ]; then
@@ -253,6 +253,7 @@ if [ "$HW_CHOICE" = "argon" ]; then
     if compgen -G "/usr/share/argon-debs/*.deb" >/dev/null; then
         dpkg -i --force-confnew /usr/share/argon-debs/*.deb 2>/dev/null || apt-get install -fy 2>/dev/null || true
     fi
+    rm -rf /usr/share/argon-debs
     whiptail --title "Hardware Profile" --msgbox "Argon ONE UP hardware profile enabled successfully!" 10 55
 else
     # Remove staging debs on generic hardware

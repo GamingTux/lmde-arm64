@@ -183,7 +183,9 @@ EOF
 
 # 13. Argon ONE UP Hardware-Pakete für First-Boot Staging bereitstellen (Installation nur bei Auswahl)
 install -d -m 755 "${ROOTFS_DIR}/usr/share/argon-debs"
-cp files/debs/argon-oneup-*.deb "${ROOTFS_DIR}/usr/share/argon-debs/"
+for deb in files/debs/argon-oneup-*.deb files/debs/rpi-vc4-edp*.deb files/debs/rpi-fake-sleep*.deb files/debs/cm5-mmc-fix*.deb; do
+	[ -f "$deb" ] && cp "$deb" "${ROOTFS_DIR}/usr/share/argon-debs/"
+done
 
 on_chroot <<- \EOF
 	plymouth-set-default-theme lmpe || true

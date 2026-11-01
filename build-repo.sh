@@ -155,7 +155,7 @@ if [[ -d "$ROOT_DIR/packages" ]]; then
     ALLOWED_SOURCES+=("$pkg_name")
   done
   # Staging-DEBs für Argon ONE UP ebenfalls schützen, falls im Pool vorhanden
-  ALLOWED_SOURCES+=("argon-oneup-essentials" "argon-oneup-battery" "argon-oneup-suite" "argon-oneup-power-profiles" "argon-oneup-sensors" "argon-oneup-lid" "argon-oneup-backlight")
+  ALLOWED_SOURCES+=("argon-oneup-essentials" "argon-oneup-battery" "argon-oneup-suite" "argon-oneup-power-profiles" "argon-oneup-sensors" "argon-oneup-lid" "argon-oneup-backlight" "rpi-vc4-edp" "rpi-fake-sleep" "cm5-mmc-fix")
   update_local_apt_repo
 fi
 
