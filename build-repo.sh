@@ -414,6 +414,8 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
       sed -i 's/findstring nocheck/findstring nodoc/g' debian/rules || true
     elif [[ "$pkg" == "re2" ]]; then
       sed -i "s|export DEB_CXXFLAGS_MAINT_APPEND=.*|export DEB_CXXFLAGS_MAINT_APPEND=-pthread -Wall -std=c++14 ${ARCH_FLAGS} ${OPT_LEVEL}|" debian/rules || true
+    elif [[ "$pkg" == "imagemagick" ]]; then
+      sed -E -i 's/sample_size[[:space:]]*$/sample_size;/' coders/jxl.c */coders/jxl.c 2>/dev/null || true
     fi
 
     # Lokales Versions-Suffix +pi5 an den Changelog anhängen
