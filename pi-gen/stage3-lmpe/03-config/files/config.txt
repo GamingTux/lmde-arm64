@@ -16,4 +16,10 @@ camera_auto_detect=1
 display_auto_detect=1
 auto_initramfs=1
 
+# --- Compute Module 5 (CM5) Carrier & Laptop Integration ---
+# Aktiviert USB 2.0 Host-Modus für interne Tastatur, Touchpad & Peripherie
+[cm5]
+dtoverlay=dwc2,dr_mode=host
+usb_max_current_enable=1
+
 [all]
