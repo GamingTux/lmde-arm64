@@ -48,9 +48,13 @@ window-effect-speed=2
 EOF
 rm -f "${ROOTFS_DIR}/usr/share/glib-2.0/schemas/99-lmpe*.override"
 
-# 3. CPU-Governor auf schedutil setzen
+# 3. CPU-Governor auf schedutil setzen & Flash/NVMe Readahead Buffer (256 KB)
 install -d -m 755 "${ROOTFS_DIR}/etc/udev/rules.d"
 echo 'KERNEL=="cpu*", SUBSYSTEM=="cpu", ATTR{cpufreq/scaling_governor}="schedutil"' > "${ROOTFS_DIR}/etc/udev/rules.d/60-ondemand-governor.rules"
+cat << 'EOF' > "${ROOTFS_DIR}/etc/udev/rules.d/60-readahead.rules"
+# LMPE Flash & NVMe Read-Ahead Buffer (256 KB)
+ACTION=="add|change", KERNEL=="nvme[0-9]*n[0-9]*|mmcblk[0-9]*|sd[a-z]*", ATTR{bdi/read_ahead_kb}="256"
+EOF
 
 # 4. Kernel-VM, Btrfs-Cache & TCP BBR Tuning
 install -d -m 755 "${ROOTFS_DIR}/etc/modules-load.d"
@@ -229,13 +233,29 @@ on_chroot <<- \EOF
 	ZRAMCONF
 	rm -f /var/swap
 
-	install -d -m 755 /etc/systemd/system.conf.d
+	install -d -m 755 /etc/systemd/system.conf.d /etc/pipewire/pipewire.conf.d /etc/apt/apt.conf.d
 	cat <<- 'SYSCONF' > /etc/systemd/system.conf.d/99-lmpe-timeout.conf
 	[Manager]
 	DefaultTimeoutStopSec=15s
 	SYSCONF
 
-	systemctl enable lightdm irqbalance.service systemd-resolved.service fstrim.timer bluetooth.service earlyoom.service packagekit.service || true
+	cat <<- 'PWCONF' > /etc/pipewire/pipewire.conf.d/99-low-latency.conf
+	context.properties = {
+	    default.clock.quantum = 512
+	    default.clock.min-quantum = 256
+	    default.clock.max-quantum = 1024
+	}
+	PWCONF
+
+	cat <<- 'APTCONF' > /etc/apt/apt.conf.d/99-lmpe-speed.conf
+	// LMPE APT Download- & Update-Optimierungen
+	APT::Acquire::Queue-Mode "host";
+	APT::Acquire::Retries "3";
+	Acquire::http::Pipeline-Depth "5";
+	Acquire::Languages { "environment"; "de"; "en"; };
+	APTCONF
+
+	systemctl enable lightdm irqbalance.service preload.service systemd-resolved.service fstrim.timer bluetooth.service earlyoom.service packagekit.service || true
 	systemctl disable glamor-test.service rp1-test.service e2scrub_reap.service e2scrub_all.timer rpi-eeprom-update.service ModemManager.service nfs-blkmap.service rpc-statd-notify.service 2>/dev/null || true
 	systemctl mask NetworkManager-wait-online.service systemd-networkd-wait-online.service rpcbind.service rpcbind.socket serial-getty@ttyAMA10.service 2>/dev/null || true
 	systemctl set-default graphical.target
