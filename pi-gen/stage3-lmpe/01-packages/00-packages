@@ -82,7 +82,6 @@ iw
 python3-dbus
 python3-gi
 ddcutil
-irqbalance
 systemd-resolved
 plymouth
 plymouth-themes

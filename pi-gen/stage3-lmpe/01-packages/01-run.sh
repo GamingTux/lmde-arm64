@@ -286,7 +286,7 @@ on_chroot <<- \EOF
 	License: GPL-2+
 	LMDEDOC
 
-	systemctl enable lightdm irqbalance.service preload.service systemd-resolved.service fstrim.timer bluetooth.service earlyoom.service packagekit.service || true
+	systemctl enable lightdm preload.service systemd-resolved.service fstrim.timer bluetooth.service earlyoom.service packagekit.service || true
 	systemctl disable glamor-test.service rp1-test.service e2scrub_reap.service e2scrub_all.timer rpi-eeprom-update.service ModemManager.service nfs-blkmap.service rpc-statd-notify.service 2>/dev/null || true
 	systemctl mask NetworkManager-wait-online.service systemd-networkd-wait-online.service rpcbind.service rpcbind.socket serial-getty@ttyAMA10.service 2>/dev/null || true
 	systemctl set-default graphical.target
