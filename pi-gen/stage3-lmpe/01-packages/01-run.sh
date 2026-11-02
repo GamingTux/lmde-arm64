@@ -260,6 +260,32 @@ on_chroot <<- \EOF
 		echo 'QT_QPA_PLATFORM="wayland;xcb"' >> /etc/environment
 	fi
 
+	# 17. PolicyKit-Regeln für Update Manager (AptKit & PackageKit)
+	install -d -m 755 /etc/polkit-1/rules.d
+	cat <<- 'POLKITCONF' > /etc/polkit-1/rules.d/60-aptkit.rules
+	// LMPE PolicyKit rules for AptKit & PackageKit updates
+	polkit.addRule(function(action, subject) {
+	    if ((action.id.indexOf("org.aptkit.") === 0 ||
+	         action.id.indexOf("org.freedesktop.packagekit.") === 0) &&
+	        (subject.isInGroup("sudo") || subject.isInGroup("admin"))) {
+	            return polkit.Result.YES;
+	    }
+	});
+	POLKITCONF
+	chmod 644 /etc/polkit-1/rules.d/60-aptkit.rules
+
+	# 18. LMDE-Kompatibilitätsmarker für mintupdate
+	install -d -m 755 /usr/share/doc/debian-system-adjustments
+	cat <<- 'LMDEDOC' > /usr/share/doc/debian-system-adjustments/copyright
+	Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+	Upstream-Name: debian-system-adjustments
+	Source: https://github.com/linuxmint/debian-system-adjustments
+
+	Files: *
+	Copyright: 2024 Linux Mint <root@linuxmint.com>
+	License: GPL-2+
+	LMDEDOC
+
 	systemctl enable lightdm irqbalance.service preload.service systemd-resolved.service fstrim.timer bluetooth.service earlyoom.service packagekit.service || true
 	systemctl disable glamor-test.service rp1-test.service e2scrub_reap.service e2scrub_all.timer rpi-eeprom-update.service ModemManager.service nfs-blkmap.service rpc-statd-notify.service 2>/dev/null || true
 	systemctl mask NetworkManager-wait-online.service systemd-networkd-wait-online.service rpcbind.service rpcbind.socket serial-getty@ttyAMA10.service 2>/dev/null || true
