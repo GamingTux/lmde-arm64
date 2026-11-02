@@ -39,6 +39,12 @@ click-method='fingers'
 [org.gnome.desktop.peripherals.touchpad]
 tap-to-click=true
 click-method='fingers'
+
+[org.cinnamon.muffin]
+unredirect-fullscreen-windows=true
+
+[org.cinnamon]
+window-effect-speed=2
 EOF
 rm -f "${ROOTFS_DIR}/usr/share/glib-2.0/schemas/99-lmpe*.override"
 
@@ -83,6 +89,15 @@ pref("media.rdd-ffmpeg.enabled", true);
 pref("media.av1.enabled", true);
 pref("media.mediasource.vp9.enabled", true);
 pref("media.webm.enabled", true);
+
+// LMPE RAM-Cache Tuning (Flash-Schonung & verzögerungsfreies Vor-/Zurückblättern)
+pref("browser.cache.disk.enable", false);
+pref("browser.cache.memory.enable", true);
+pref("browser.cache.memory.capacity", 524288);
+
+// Parallele HTTP/2 & HTTP/3 Verbindungen
+pref("network.http.max-persistent-connections-per-server", 10);
+pref("network.http.max-urgent-start-paging-connections", 10);
 EOF
 cp "${ROOTFS_DIR}/etc/firefox/99-lmpe-pi5.js" "${ROOTFS_DIR}/usr/lib/firefox/browser/defaults/preferences/99-lmpe-pi5.js" 2>/dev/null || true
 
@@ -192,8 +207,8 @@ on_chroot <<- \EOF
 	flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo || true
 	glib-compile-schemas /usr/share/glib-2.0/schemas || true
 	apt-get remove -y xserver-xorg-video-fbdev || true
-	# 14. Boot-Optimierungen: Dynamic ZRAM (kein /var/swap Verschleiß), EEPROM-OneShot & unblocktes Backlight
-	install -d -m 755 /etc/rpi
+	# 14. Boot-Optimierungen: Dynamic ZRAM (kein /var/swap Verschleiß, lzo-rle Low-Latency), EEPROM-OneShot & unblocktes Backlight
+	install -d -m 755 /etc/rpi /etc/systemd
 	cat <<- 'SWAPCONF' > /etc/rpi/swap.conf
 	# LMPE Dynamic ZRAM Swap Configuration
 	# Scales dynamically with physical RAM: Size = min(RAM * RamMultiplier, MaxSizeMiB)
@@ -207,6 +222,11 @@ on_chroot <<- \EOF
 	[File]
 	MaxSizeMiB=0
 	SWAPCONF
+
+	cat <<- 'ZRAMCONF' > /etc/systemd/zram-generator.conf
+	[zram0]
+	compression-algorithm = lzo-rle
+	ZRAMCONF
 	rm -f /var/swap
 
 	install -d -m 755 /etc/systemd/system.conf.d

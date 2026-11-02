@@ -4,13 +4,13 @@
 cat << 'EOF' > "${ROOTFS_DIR}/etc/fstab"
 proc            /proc           proc    defaults          0       0
 BOOTDEV  /boot/firmware  vfat    defaults          0       0
-ROOTDEV  /               btrfs   defaults,compress=zstd:2,noatime,nodiratime,ssd,discard=async 0 0
+ROOTDEV  /               btrfs   defaults,compress=zstd:2,noatime,nodiratime,commit=60,ssd,discard=async 0 0
 tmpfs           /tmp            tmpfs   defaults,noatime,nosuid,nodev,mode=1777 0 0
 EOF
 
 # 2. Kernel-Kommandozeile (/boot/firmware/cmdline.txt) auf rootfstype=btrfs & Plymouth Boot-Splash umstellen
 if [ -f "${ROOTFS_DIR}/boot/firmware/cmdline.txt" ]; then
-	sed -i 's/rootfstype=ext4/rootfstype=btrfs rootflags=compress=zstd:2,noatime,nodiratime,ssd,discard=async/g' "${ROOTFS_DIR}/boot/firmware/cmdline.txt"
+	sed -i 's/rootfstype=ext4/rootfstype=btrfs rootflags=compress=zstd:2,noatime,nodiratime,commit=60,ssd,discard=async/g' "${ROOTFS_DIR}/boot/firmware/cmdline.txt"
 	sed -i 's/fsck.repair=yes/fsck.repair=no/g' "${ROOTFS_DIR}/boot/firmware/cmdline.txt"
 	sed -i 's/\bresize\b//g; s/[[:space:]]*$//' "${ROOTFS_DIR}/boot/firmware/cmdline.txt"
 	if ! grep -q "splash" "${ROOTFS_DIR}/boot/firmware/cmdline.txt"; then
