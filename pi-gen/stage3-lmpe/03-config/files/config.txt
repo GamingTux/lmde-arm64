@@ -18,8 +18,10 @@ auto_initramfs=1
 
 # --- Compute Module 5 (CM5) Carrier & Laptop Integration ---
 # Aktiviert USB 2.0 Host-Modus für interne Tastatur, Touchpad & Peripherie
+# Externe Antenne (ant2) für Metallgehäuse wie Argon ONE UP
 [cm5]
 dtoverlay=dwc2,dr_mode=host
+dtparam=ant2
 usb_max_current_enable=1
 
 # --- Raspberry Pi 5 & CM5 PCIe Gen 3 (NVMe SSDs & M.2 Hats) ---

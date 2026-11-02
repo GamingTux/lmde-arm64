@@ -233,11 +233,21 @@ on_chroot <<- \EOF
 	ZRAMCONF
 	rm -f /var/swap
 
-	install -d -m 755 /etc/systemd/system.conf.d /etc/pipewire/pipewire.conf.d /etc/apt/apt.conf.d
+	install -d -m 755 /etc/systemd/system.conf.d /etc/systemd/user.conf.d /etc/systemd/system/user@.service.d /etc/pipewire/pipewire.conf.d /etc/apt/apt.conf.d
 	cat <<- 'SYSCONF' > /etc/systemd/system.conf.d/99-lmpe-timeout.conf
 	[Manager]
 	DefaultTimeoutStopSec=15s
 	SYSCONF
+
+	cat <<- 'USERCONF' > /etc/systemd/user.conf.d/99-lmpe-timeout.conf
+	[Manager]
+	DefaultTimeoutStopSec=10s
+	USERCONF
+
+	cat <<- 'USERSVCCONF' > /etc/systemd/system/user@.service.d/timeout.conf
+	[Service]
+	TimeoutStopSec=10s
+	USERSVCCONF
 
 	cat <<- 'PWCONF' > /etc/pipewire/pipewire.conf.d/99-low-latency.conf
 	context.properties = {
@@ -255,10 +265,15 @@ on_chroot <<- \EOF
 	Acquire::Languages { "environment"; "de"; "en"; };
 	APTCONF
 
-	# 16. Qt Wayland/X11 Auto-Backend (/etc/environment)
+	# 16. Desktop Environment Variables (/etc/environment & profile.d)
 	if ! grep -q "QT_QPA_PLATFORM" /etc/environment 2>/dev/null; then
 		echo 'QT_QPA_PLATFORM="wayland;xcb"' >> /etc/environment
 	fi
+	# Firefox via Xwayland (verhindert VC4 DRM atomic flip_done Deadlock & Mauszeiger-Freeze unter Cinnamon-Wayland)
+	if ! grep -q "MOZ_ENABLE_WAYLAND" /etc/environment 2>/dev/null; then
+		echo 'MOZ_ENABLE_WAYLAND=0' >> /etc/environment
+	fi
+	echo 'export MOZ_ENABLE_WAYLAND=0' > /etc/profile.d/firefox-wayland.sh
 
 	# 17. PolicyKit-Regeln für Update Manager (AptKit & PackageKit)
 	install -d -m 755 /etc/polkit-1/rules.d
@@ -333,6 +348,10 @@ if target in c:
         f.write(c)
 ' 2>/dev/null || true
 	fi
+
+	# 21. Initialer updates.json Seed für mintupdate (verhindert FileNotFound-Traceback im Log)
+	install -d -m 755 /etc/skel/.linuxmint/mintupdate
+	echo '{"version": 1, "updates": {}, "checked": "", "notified": ""}' > /etc/skel/.linuxmint/mintupdate/updates.json
 
 	# 10. Boot-Parallelisierung: systemd-user-sessions von network.target entkoppeln
 	cat << 'EOF_SESS' > /etc/systemd/system/systemd-user-sessions.service
