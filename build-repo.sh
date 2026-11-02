@@ -154,7 +154,20 @@ if [[ -d "$ROOT_DIR/packages" ]]; then
     dpkg-deb --root-owner-group -b "$pkg_dir" "$target_deb" >/dev/null
     ALLOWED_SOURCES+=("$pkg_name")
   done
-  # Staging-DEBs für Argon ONE UP ebenfalls schützen, falls im Pool vorhanden
+
+  # Staging-DEBs (Argon ONE UP, rpi-vc4-edp, rpi-fake-sleep, cm5-mmc-fix) ebenfalls in pool/main bereitstellen und schützen
+  if [[ -d "$ROOT_DIR/pi-gen/stage3-lmpe/01-packages/files/debs" ]]; then
+    for deb_file in "$ROOT_DIR"/pi-gen/stage3-lmpe/01-packages/files/debs/*.deb; do
+      [[ -f "$deb_file" ]] || continue
+      deb_base="$(basename "$deb_file")"
+      echo "📦 Übernehme Staging-Paket ${deb_base} in APT-Pool..."
+      cp -f "$deb_file" "$REPO_DIR/pool/main/"
+      pkg_src="$(dpkg-deb -f "$deb_file" Source 2>/dev/null | awk '{print $1}' || true)"
+      pkg_name="$(dpkg-deb -f "$deb_file" Package 2>/dev/null | awk '{print $1}' || true)"
+      [[ -n "$pkg_src" ]] && ALLOWED_SOURCES+=("$pkg_src")
+      [[ -n "$pkg_name" ]] && ALLOWED_SOURCES+=("$pkg_name")
+    done
+  fi
   ALLOWED_SOURCES+=("argon-oneup-essentials" "argon-oneup-battery" "argon-oneup-suite" "argon-oneup-power-profiles" "argon-oneup-sensors" "argon-oneup-lid" "argon-oneup-backlight" "rpi-vc4-edp" "rpi-fake-sleep" "cm5-mmc-fix")
   update_local_apt_repo
 fi
