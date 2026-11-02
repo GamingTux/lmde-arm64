@@ -1,5 +1,6 @@
-# LMPE — Linux Mint Pi Edition 🍓🍃
+# LMPE — Unofficial Linux Mint Pi Edition 🍓🍃
 
+[![Status](https://img.shields.io/badge/Status-Unofficial%20Community%20Port-orange?style=flat-square)](#-license--community-disclaimer)
 [![Build LMPE Repo](https://github.com/GamingTux/lmde-arm64/actions/workflows/build.yml/badge.svg)](https://github.com/GamingTux/lmde-arm64/actions/workflows/build.yml)
 [![Build LMPE Image](https://github.com/GamingTux/lmde-arm64/actions/workflows/build-image.yml/badge.svg)](https://github.com/GamingTux/lmde-arm64/actions/workflows/build-image.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/GamingTux/lmde-arm64?include_prereleases&style=flat-square&color=87cf3e)](https://github.com/GamingTux/lmde-arm64/releases)
@@ -8,8 +9,10 @@
 [![Filesystem](https://img.shields.io/badge/RootFS-Btrfs%20%2B%20zstd%3A2-orange?style=flat-square)](https://btrfs.readthedocs.io/)
 [![License](https://img.shields.io/github/license/GamingTux/lmde-arm64?style=flat-square)](LICENSE)
 
-> **The premier Linux Mint Cinnamon desktop experience engineered exclusively for Raspberry Pi 5, Compute Module 5 (CM5), and Raspberry Pi 500.**  
-> Built upon **LMDE 7 ("gigi")** and **Debian 13 Trixie**, LMPE delivers a responsive, feature-rich Linux Mint desktop natively compiled and aggressively optimized for the **Broadcom BCM2712 (ARM Cortex-A76)** 64-bit microarchitecture.
+> **An independent, community-driven Linux Mint Cinnamon desktop experience engineered exclusively for Raspberry Pi 5, Compute Module 5 (CM5), and Raspberry Pi 500.**  
+> Built upon **LMDE 7 ("gigi")** and **Debian 13 Trixie**, LMPE delivers a responsive, feature-rich Cinnamon desktop natively compiled and aggressively optimized for the **Broadcom BCM2712 (ARM Cortex-A76)** 64-bit microarchitecture.  
+>  
+> *Disclaimer: LMPE is an independent community project by GamingTux and is NOT officially affiliated with, sponsored by, or endorsed by the Linux Mint team or Clement Lefebvre.*
 
 > [!IMPORTANT]
 > **Hardware Exclusivity:** LMPE is strictly engineered for the **Raspberry Pi 5**, **Compute Module 5 (CM5)**, and **Raspberry Pi 500**. It compiles and leverages ARMv8.2-A, Dot Product, FP16, and hardware cryptography instructions that are physically absent on older Raspberry Pi generations (Pi 4, Pi 3, Pi Zero 2W). Attempting to run LMPE on older boards will result in immediate `Illegal instruction` (SIGILL) termination.
@@ -24,9 +27,9 @@
 
 ## 🌟 Why LMPE?
 
-Linux Mint is globally celebrated for its elegance, stability, and intuitive Cinnamon desktop environment. However, **Linux Mint does not offer an official ARM64 image for single-board computers**.
+Linux Mint is globally celebrated for its elegance, stability, and intuitive Cinnamon desktop environment. However, **the Linux Mint team does not maintain an official ARM64 port for single-board computers**.
 
-**LMPE (Linux Mint Pi Edition)** bridges this gap, transforming the Raspberry Pi 5 into a first-class, workstation-grade Linux Mint desktop:
+**LMPE (Unofficial Linux Mint Pi Edition)** bridges this gap as an independent community distribution, transforming the Raspberry Pi 5 into a first-class, workstation-grade Linux Mint desktop:
 
 1. **Ready-to-Flash Bootable OS Images:** Out-of-the-box system images featuring a high-performance **Btrfs** root filesystem with transparent Zstandard (`zstd:2`) compression.
 2. **Dedicated GPG-Signed APT Repository:** Over **160+ system and desktop packages** recompiled specifically with Cortex-A76 SIMD vectorization and Link-Time Optimization (`-flto=auto`).
@@ -253,7 +256,7 @@ LMPE is explicitly compiled for the <b>ARMv8.2-A Cortex-A76 CPU architecture</b>
 ## ⚖️ License & Community Disclaimer
 
 * **License:** Code and build scripts in this repository are licensed under the [MIT License](LICENSE). Software included in the distribution is licensed under their respective upstream open-source licenses (GPL, LGPL, BSD, MIT).
-* **Disclaimer:** *LMPE (Linux Mint Pi Edition)* is an independent, community-driven open source project. It is **not** affiliated with, endorsed by, or sponsored by Linux Mint or Raspberry Pi Ltd. "Linux Mint", "Cinnamon", and "Raspberry Pi" are trademarks of their respective owners.
+* **Community Project Disclaimer:** *LMPE* is an independent, community-driven open source project developed by GamingTux. It is **not** an official distribution by Linux Mint, Clement Lefebvre, or Raspberry Pi Ltd., nor is it officially endorsed or sponsored by them. "Linux Mint", "LMDE", "Cinnamon", and "Raspberry Pi" are trademarks of their respective owners.
 
 ---
 

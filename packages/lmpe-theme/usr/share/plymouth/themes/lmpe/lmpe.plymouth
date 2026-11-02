@@ -1,6 +1,6 @@
 [Plymouth Theme]
-Name=LMPE Official Dark
-Description=Linux Mint Pi Edition (LMPE) Resolution-Independent Boot Splash
+Name=LMPE Dark (Community)
+Description=LMPE (Unofficial Linux Mint Pi Edition) Boot Splash
 ModuleName=script
 
 [script]

@@ -8,6 +8,6 @@ Depends: plymouth, plymouth-themes, dconf-gsettings-backend
 Recommends: lightdm, slick-greeter, fastfetch
 Homepage: https://github.com/GamingTux/lmde-arm64
 Description: Artwork, Plymouth bootscreens, wallpapers and branding for LMPE
- Official branding artwork for Linux Mint Pi Edition (LMPE), including
+ Community branding artwork for LMPE (Unofficial Linux Mint Pi Edition), including
  high-resolution Plymouth bootscreen (Tatooine Edition), desktop
  wallpapers, Fastfetch configuration, and native Cinnamon background properties.

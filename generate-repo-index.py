@@ -401,7 +401,7 @@ sudo apt update</code></pre>
     </div>
 
     <footer>
-      <p>LMPE (Linux Mint Pi Edition) • Built with ❤️ for Raspberry Pi 5 &amp; CM5 • <a href="https://github.com/GamingTux/lmde-arm64" target="_blank" rel="noopener">GitHub Repository</a></p>
+      <p>LMPE (Unofficial Linux Mint Pi Edition) • Community Project by GamingTux • Built with ❤️ for Raspberry Pi 5 &amp; CM5 • <a href="https://github.com/GamingTux/lmde-arm64" target="_blank" rel="noopener">GitHub Repository</a></p>
     </footer>
   </div>
 
