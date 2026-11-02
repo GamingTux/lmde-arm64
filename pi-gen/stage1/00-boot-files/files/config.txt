@@ -44,11 +44,9 @@ arm_boost=1
 # This line should be removed if the legacy DWC2 controller is required
 # (e.g. for USB device mode) or if USB support is not required.
 otg_mode=1
-dtparam=ant2
 
 [cm5]
 dtoverlay=dwc2,dr_mode=host
-dtparam=ant2
 
 [pi5]
 dtoverlay=nospi10

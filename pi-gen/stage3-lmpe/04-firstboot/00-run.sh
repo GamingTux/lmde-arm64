@@ -254,6 +254,17 @@ if [ "$HW_CHOICE" = "argon" ]; then
     if compgen -G "/usr/share/argon-debs/*.deb" >/dev/null; then
         dpkg -i --force-confnew /usr/share/argon-debs/*.deb 2>/dev/null || apt-get install -fy 2>/dev/null || true
     fi
+    # Argon ONE UP Aluminiumgehäuse: Externe Antenne (ant2) gezielt für CM5/CM4 aktivieren
+    BOOTCONF="/boot/firmware/config.txt"
+    [ ! -f "$BOOTCONF" ] && BOOTCONF="/boot/config.txt"
+    if [ -f "$BOOTCONF" ] && ! grep -q "dtparam=ant2" "$BOOTCONF"; then
+        if grep -q "^\[cm5\]" "$BOOTCONF"; then
+            sed -i '/^\[cm5\]/a dtparam=ant2' "$BOOTCONF"
+        fi
+        if grep -q "^\[cm4\]" "$BOOTCONF"; then
+            sed -i '/^\[cm4\]/a dtparam=ant2' "$BOOTCONF"
+        fi
+    fi
     rm -rf /usr/share/argon-debs
     whiptail --title "Hardware Profile" --msgbox "Argon ONE UP hardware profile enabled successfully!" 10 55
 else
