@@ -286,6 +286,54 @@ on_chroot <<- \EOF
 	License: GPL-2+
 	LMDEDOC
 
+	# 19. Vorab-Generierung europäischer Standard-Locales
+	cat <<- 'LOCALECONF' > /etc/locale.gen
+	de_DE.UTF-8 UTF-8
+	de_AT.UTF-8 UTF-8
+	de_CH.UTF-8 UTF-8
+	en_US.UTF-8 UTF-8
+	en_GB.UTF-8 UTF-8
+	fr_FR.UTF-8 UTF-8
+	fr_BE.UTF-8 UTF-8
+	fr_CH.UTF-8 UTF-8
+	es_ES.UTF-8 UTF-8
+	it_IT.UTF-8 UTF-8
+	nl_NL.UTF-8 UTF-8
+	nl_BE.UTF-8 UTF-8
+	pl_PL.UTF-8 UTF-8
+	pt_PT.UTF-8 UTF-8
+	pt_BR.UTF-8 UTF-8
+	LOCALECONF
+	locale-gen || true
+
+	# 20. Absicherung checkAPT.py gegen NoneType-Crash bei unbekannten/ungenerierten Locales
+	if [ -f /usr/lib/linuxmint/mintUpdate/checkAPT.py ]; then
+		python3 -c '
+path = "/usr/lib/linuxmint/mintUpdate/checkAPT.py"
+with open(path, "r") as f:
+    c = f.read()
+target = """    def apply_l10n_descriptions(self):
+        lang, encoding = locale.getlocale()
+        if "_" in lang:
+            lang = lang.split("_")[0]
+        if lang in [None, "C", "en"]:
+            return"""
+replacement = """    def apply_l10n_descriptions(self):
+        try:
+            lang, encoding = locale.getlocale()
+            if not lang or lang in ["C", "en"]:
+                return
+            if "_" in lang:
+                lang = lang.split("_")[0]
+        except Exception:
+            return"""
+if target in c:
+    c = c.replace(target, replacement, 1)
+    with open(path, "w") as f:
+        f.write(c)
+' 2>/dev/null || true
+	fi
+
 	systemctl enable lightdm preload.service systemd-resolved.service fstrim.timer bluetooth.service earlyoom.service packagekit.service || true
 	systemctl disable glamor-test.service rp1-test.service e2scrub_reap.service e2scrub_all.timer rpi-eeprom-update.service ModemManager.service nfs-blkmap.service rpc-statd-notify.service 2>/dev/null || true
 	systemctl mask NetworkManager-wait-online.service systemd-networkd-wait-online.service rpcbind.service rpcbind.socket serial-getty@ttyAMA10.service 2>/dev/null || true

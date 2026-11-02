@@ -114,9 +114,10 @@ case "$LOCALE_CHOICE" in
     *)           TZ_CHOICE="UTC";           WIFI_CC="US" ;;
 esac
 
-raspi-config nonint do_change_locale "$LOCALE_CHOICE" 2>/dev/null || true
-grep -q "^en_US.UTF-8 UTF-8" /etc/locale.gen 2>/dev/null || echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
-locale-gen 2>/dev/null || true
+if [ -n "$LOCALE_CHOICE" ]; then
+    grep -q "^${LOCALE_CHOICE} UTF-8" /etc/locale.gen 2>/dev/null || echo "${LOCALE_CHOICE} UTF-8" >> /etc/locale.gen
+    update-locale LANG="$LOCALE_CHOICE" LC_ALL="" 2>/dev/null || true
+fi
 raspi-config nonint do_change_timezone "$TZ_CHOICE" 2>/dev/null || true
 raspi-config nonint do_wifi_country "$WIFI_CC" 2>/dev/null || true
 rfkill unblock wifi 2>/dev/null || true
