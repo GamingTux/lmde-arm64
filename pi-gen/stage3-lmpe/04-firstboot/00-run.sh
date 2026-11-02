@@ -244,6 +244,16 @@ if whiptail --title "LMPE First-Boot Setup (5/7) - Automatic Login" \
     usermod -aG autologin "$NEW_USER" 2>/dev/null || true
 fi
 
+# Initialer updates.json Seed für mintupdate im User-Home
+USER_HOME=$(getent passwd "$NEW_USER" | cut -d: -f6)
+if [ -n "$USER_HOME" ] && [ -d "$USER_HOME" ]; then
+    mkdir -p "$USER_HOME/.linuxmint/mintupdate"
+    if [ ! -f "$USER_HOME/.linuxmint/mintupdate/updates.json" ]; then
+        echo '{"version": 1, "updates": {}, "checked": "", "notified": ""}' > "$USER_HOME/.linuxmint/mintupdate/updates.json"
+    fi
+    chown -R "${NEW_USER}:${NEW_USER}" "$USER_HOME/.linuxmint" 2>/dev/null || true
+fi
+
 # --- 6. Hardware Platform Profile (Standard Pi vs. Argon ONE UP) ---
 HW_CHOICE=$(whiptail --title "LMPE First-Boot Setup (6/7) - Hardware Profile" \
     --menu "Please select the hardware profile for this system:" 14 70 2 \
@@ -302,13 +312,18 @@ LCONF
 fi
 
 
-whiptail --title "LMPE Setup Complete" \
-    --msgbox "Setup is complete!\n\nYour configuration has been applied. The system will now launch the Linux Mint Cinnamon desktop.\n\nWelcome to LMPE 'Tatooine'! ☀️☀️" 12 65
-
 # First-Boot-Service deaktivieren, damit er nur beim allerersten Start läuft
 systemctl disable lmpe-firstboot.service 2>/dev/null || true
 sync
-exit 0
+
+if whiptail --title "LMPE Setup Complete" \
+    --yesno "Setup is complete!\n\nYour configuration and hardware profile have been applied.\n\nA system restart is recommended so all hardware changes (antenna, power management, device overlays) take full effect.\n\nWould you like to restart now?" 15 70; then
+    whiptail --title "Rebooting" --infobox "Rebooting system, please wait..." 8 45
+    sleep 1
+    systemctl reboot
+else
+    exit 0
+fi
 EOF
 chmod 755 "${ROOTFS_DIR}/usr/local/sbin/lmpe-firstboot.sh"
 
