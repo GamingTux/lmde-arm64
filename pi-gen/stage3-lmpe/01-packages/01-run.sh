@@ -348,8 +348,8 @@ ExecStart=/usr/lib/systemd/systemd-user-sessions start
 ExecStop=/usr/lib/systemd/systemd-user-sessions stop
 EOF_SESS
 
-	systemctl enable lightdm ssh.socket systemd-resolved.service fstrim.timer bluetooth.service earlyoom.service packagekit.service || true
-	systemctl disable ssh.service blueman-mechanism.service lm-sensors.service sshswitch.service glamor-test.service rp1-test.service e2scrub_reap.service e2scrub_all.timer rpi-eeprom-update.service ModemManager.service nfs-blkmap.service rpc-statd-notify.service 2>/dev/null || true
+	systemctl enable lightdm ssh.socket blueman-mechanism.service systemd-resolved.service fstrim.timer bluetooth.service earlyoom.service packagekit.service || true
+	systemctl disable ssh.service lm-sensors.service sshswitch.service glamor-test.service rp1-test.service e2scrub_reap.service e2scrub_all.timer rpi-eeprom-update.service ModemManager.service nfs-blkmap.service rpc-statd-notify.service 2>/dev/null || true
 	systemctl mask NetworkManager-wait-online.service systemd-networkd-wait-online.service rpcbind.service rpcbind.socket serial-getty@ttyAMA10.service 2>/dev/null || true
 	systemctl set-default graphical.target
 EOF
