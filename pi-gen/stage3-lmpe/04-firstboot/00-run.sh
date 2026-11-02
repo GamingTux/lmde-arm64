@@ -30,8 +30,10 @@ textbox=black,lightgray
 entry=black,white
 '
 
-# Plymouth für das interaktive First-Boot-Menü beenden
-/usr/bin/plymouth quit 2>/dev/null || true
+# Plymouth für das interaktive First-Boot-Menü beenden und TTY1 aktivieren
+/usr/bin/plymouth deactivate 2>/dev/null || true
+/usr/bin/plymouth quit --wait 2>/dev/null || true
+chvt 1 2>/dev/null || true
 clear
 
 # --- 1. Keyboard Layout ---
@@ -315,10 +317,15 @@ cat << 'EOF' > "${ROOTFS_DIR}/etc/systemd/system/lmpe-firstboot.service"
 Description=LMPE Interactive TTY First-Boot Configuration Wizard
 After=systemd-user-sessions.service NetworkManager.service lmpe-btrfs-resize.service
 Before=lightdm.service display-manager.service getty@tty1.service
+Conflicts=getty@tty1.service
 ConditionPathExists=/usr/local/sbin/lmpe-firstboot.sh
 
 [Service]
 Type=oneshot
+TimeoutStartSec=0
+ExecStartPre=-/usr/bin/plymouth deactivate
+ExecStartPre=-/usr/bin/plymouth quit --wait
+ExecStartPre=-/bin/chvt 1
 ExecStart=/usr/local/sbin/lmpe-firstboot.sh
 StandardInput=tty
 StandardOutput=tty
