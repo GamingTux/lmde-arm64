@@ -334,8 +334,22 @@ if target in c:
 ' 2>/dev/null || true
 	fi
 
-	systemctl enable lightdm preload.service systemd-resolved.service fstrim.timer bluetooth.service earlyoom.service packagekit.service || true
-	systemctl disable glamor-test.service rp1-test.service e2scrub_reap.service e2scrub_all.timer rpi-eeprom-update.service ModemManager.service nfs-blkmap.service rpc-statd-notify.service 2>/dev/null || true
+	# 10. Boot-Parallelisierung: systemd-user-sessions von network.target entkoppeln
+	cat << 'EOF_SESS' > /etc/systemd/system/systemd-user-sessions.service
+[Unit]
+Description=Permit User Sessions
+Documentation=man:systemd-user-sessions.service(8)
+After=remote-fs.target nss-user-lookup.target home.mount
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/lib/systemd/systemd-user-sessions start
+ExecStop=/usr/lib/systemd/systemd-user-sessions stop
+EOF_SESS
+
+	systemctl enable lightdm ssh.socket systemd-resolved.service fstrim.timer bluetooth.service earlyoom.service packagekit.service || true
+	systemctl disable ssh.service blueman-mechanism.service lm-sensors.service sshswitch.service glamor-test.service rp1-test.service e2scrub_reap.service e2scrub_all.timer rpi-eeprom-update.service ModemManager.service nfs-blkmap.service rpc-statd-notify.service 2>/dev/null || true
 	systemctl mask NetworkManager-wait-online.service systemd-networkd-wait-online.service rpcbind.service rpcbind.socket serial-getty@ttyAMA10.service 2>/dev/null || true
 	systemctl set-default graphical.target
 EOF
