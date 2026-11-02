@@ -255,6 +255,11 @@ on_chroot <<- \EOF
 	Acquire::Languages { "environment"; "de"; "en"; };
 	APTCONF
 
+	# 16. Qt Wayland/X11 Auto-Backend (/etc/environment)
+	if ! grep -q "QT_QPA_PLATFORM" /etc/environment 2>/dev/null; then
+		echo 'QT_QPA_PLATFORM="wayland;xcb"' >> /etc/environment
+	fi
+
 	systemctl enable lightdm irqbalance.service preload.service systemd-resolved.service fstrim.timer bluetooth.service earlyoom.service packagekit.service || true
 	systemctl disable glamor-test.service rp1-test.service e2scrub_reap.service e2scrub_all.timer rpi-eeprom-update.service ModemManager.service nfs-blkmap.service rpc-statd-notify.service 2>/dev/null || true
 	systemctl mask NetworkManager-wait-online.service systemd-networkd-wait-online.service rpcbind.service rpcbind.socket serial-getty@ttyAMA10.service 2>/dev/null || true
