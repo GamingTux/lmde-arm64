@@ -101,6 +101,8 @@ earlyoom
 packagekit
 packagekit-tools
 gir1.2-packagekitglib-1.0
+appstream
+gir1.2-appstream-1.0
 blueman
 bluez
 bluez-tools

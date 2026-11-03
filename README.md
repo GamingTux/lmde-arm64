@@ -180,12 +180,17 @@ Pin: origin "archive.raspberrypi.com"
 Pin-Priority: 1000
 
 Package: *
+Pin: origin "deb.debian.org"
+Pin-Priority: 900
+
+Package: *
 Pin: origin "packages.linuxmint.com"
 Pin-Priority: 700
 ```
 
 * **`gamingtux.github.io` (Priority 1001):** Highest priority. Delivers Cortex-A76 recompiled packages (`+pi5`).
 * **`archive.raspberrypi.com` (Priority 1000):** Protects the official Raspberry Pi kernel (`linux-image-rpi-2712`), firmware, bootloader, EEPROM, and VideoCore VII GPU drivers.
+* **`deb.debian.org` (Priority 900):** Prioritizes native Debian 13 ARM64 application packages over foreign x86 architectures.
 * **`packages.linuxmint.com` (Priority 700):** Delivers architecture-independent (`Architecture: all`) Linux Mint components (`mintupdate`, `mintinstall`, `mintsources`, Mint-Y themes, icons).
 
 ---

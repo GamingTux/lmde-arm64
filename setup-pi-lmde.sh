@@ -50,6 +50,10 @@ Pin: origin "archive.raspberrypi.com"
 Pin-Priority: 1000
 
 Package: *
+Pin: origin "deb.debian.org"
+Pin-Priority: 900
+
+Package: *
 Pin: origin "packages.linuxmint.com"
 Pin-Priority: 700
 EOF
