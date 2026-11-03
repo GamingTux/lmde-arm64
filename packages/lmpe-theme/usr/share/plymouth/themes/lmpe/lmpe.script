@@ -25,7 +25,19 @@ bg_img = bg_raw.Scale(scaled_w, scaled_h);
 bg_sprite = Sprite(bg_img);
 bg_sprite.SetPosition((sw - scaled_w) / 2, (sh - scaled_h) / 2, -100);
 
-// 2. Centered rotating spinner below the typography in the designated dark area
+// 2. Centered high-resolution logo typography overlay (layer 10)
+logo_raw = Image("logo.png");
+if (logo_raw) {
+    logo_w = logo_raw.GetWidth();
+    logo_h = logo_raw.GetHeight();
+    logo_scaled_w = Math.Int(logo_w * scale);
+    logo_scaled_h = Math.Int(logo_h * scale);
+    logo_img = logo_raw.Scale(logo_scaled_w, logo_scaled_h);
+    logo_sprite = Sprite(logo_img);
+    logo_sprite.SetPosition((sw - logo_scaled_w) / 2, (sh - scaled_h) / 2 + Math.Int(150 * scale), 10);
+}
+
+// 3. Centered rotating spinner below the typography in the designated dark area
 sp_raw = Image("spinner.png");
 sp_scale = scale;
 if (sp_scale < 0.6)
