@@ -75,35 +75,11 @@ net.ipv4.tcp_congestion_control = bbr
 net.ipv4.tcp_fastopen = 3
 EOF
 
-# 5. Standard-Webbrowser auf Firefox setzen, GPU-WebRender & Codec-Tuning konfigurieren
+# 5. Standard-Webbrowser auf Firefox setzen (native Optimierungen via rpi-firefox-mods)
 on_chroot << 'EOF'
 update-alternatives --set x-www-browser /usr/bin/firefox || true
 update-alternatives --set gnome-www-browser /usr/bin/firefox || true
 EOF
-
-install -d -m 755 "${ROOTFS_DIR}/etc/firefox" "${ROOTFS_DIR}/usr/lib/firefox/browser/defaults/preferences"
-cat << 'EOF' > "${ROOTFS_DIR}/etc/firefox/99-lmpe-pi5.js"
-// LMPE Raspberry Pi 5 GPU- & Codec-Optimierungen für Firefox
-pref("gfx.webrender.all", true);
-pref("layers.acceleration.force-enabled", true);
-pref("media.ffmpeg.vaapi.enabled", false);
-pref("widget.dmabuf.textures", false);
-pref("media.ffvpx.enabled", true);
-pref("media.rdd-ffmpeg.enabled", true);
-pref("media.av1.enabled", true);
-pref("media.mediasource.vp9.enabled", true);
-pref("media.webm.enabled", true);
-
-// LMPE RAM-Cache Tuning (Flash-Schonung & verzögerungsfreies Vor-/Zurückblättern)
-pref("browser.cache.disk.enable", false);
-pref("browser.cache.memory.enable", true);
-pref("browser.cache.memory.capacity", 524288);
-
-// Parallele HTTP/2 & HTTP/3 Verbindungen
-pref("network.http.max-persistent-connections-per-server", 10);
-pref("network.http.max-urgent-start-paging-connections", 10);
-EOF
-cp "${ROOTFS_DIR}/etc/firefox/99-lmpe-pi5.js" "${ROOTFS_DIR}/usr/lib/firefox/browser/defaults/preferences/99-lmpe-pi5.js" 2>/dev/null || true
 
 install -d -m 755 "${ROOTFS_DIR}/etc/chromium.d"
 echo 'export CHROMIUM_FLAGS="$CHROMIUM_FLAGS --enable-remote-extensions"' > "${ROOTFS_DIR}/etc/chromium.d/00-rpi-vars"
@@ -265,15 +241,10 @@ on_chroot <<- \EOF
 	Acquire::Languages { "environment"; "de"; "en"; };
 	APTCONF
 
-	# 16. Desktop Environment Variables (/etc/environment & profile.d)
+	# 16. Desktop Environment Variables (/etc/environment)
 	if ! grep -q "QT_QPA_PLATFORM" /etc/environment 2>/dev/null; then
 		echo 'QT_QPA_PLATFORM="wayland;xcb"' >> /etc/environment
 	fi
-	# Firefox via Xwayland (verhindert VC4 DRM atomic flip_done Deadlock & Mauszeiger-Freeze unter Cinnamon-Wayland)
-	if ! grep -q "MOZ_ENABLE_WAYLAND" /etc/environment 2>/dev/null; then
-		echo 'MOZ_ENABLE_WAYLAND=0' >> /etc/environment
-	fi
-	echo 'export MOZ_ENABLE_WAYLAND=0' > /etc/profile.d/firefox-wayland.sh
 
 	# 17. PolicyKit-Regeln für Update Manager (AptKit & PackageKit)
 	install -d -m 755 /etc/polkit-1/rules.d

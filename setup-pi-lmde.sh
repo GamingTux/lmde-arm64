@@ -50,10 +50,6 @@ Pin: origin "archive.raspberrypi.com"
 Pin-Priority: 1000
 
 Package: *
-Pin: origin "deb.debian.org"
-Pin-Priority: 900
-
-Package: *
 Pin: origin "packages.linuxmint.com"
 Pin-Priority: 700
 EOF
@@ -87,21 +83,8 @@ apt-get install -y \
   htop \
   fastfetch
 
-echo ">>> [6/6] Configuring LightDM with Slick Greeter and Firefox GPU acceleration..."
-mkdir -p /etc/lightdm/lightdm.conf.d /etc/firefox /usr/lib/firefox/browser/defaults/preferences
-cat << 'EOF' > /etc/firefox/99-lmpe-pi5.js
-// LMPE Raspberry Pi 5 GPU & Codec Optimizations for Firefox
-pref("gfx.webrender.all", true);
-pref("layers.acceleration.force-enabled", true);
-pref("media.ffmpeg.vaapi.enabled", false);
-pref("widget.dmabuf.textures", false);
-pref("media.ffvpx.enabled", true);
-pref("media.rdd-ffmpeg.enabled", true);
-pref("media.av1.enabled", true);
-pref("media.mediasource.vp9.enabled", true);
-pref("media.webm.enabled", true);
-EOF
-cp /etc/firefox/99-lmpe-pi5.js /usr/lib/firefox/browser/defaults/preferences/99-lmpe-pi5.js 2>/dev/null || true
+echo ">>> [6/6] Configuring LightDM with Slick Greeter..."
+mkdir -p /etc/lightdm/lightdm.conf.d
 
 cat << 'EOF' > /etc/lightdm/lightdm.conf.d/90-slick-greeter.conf
 [Seat:*]
