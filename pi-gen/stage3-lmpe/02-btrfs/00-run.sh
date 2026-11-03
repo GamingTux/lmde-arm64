@@ -35,13 +35,21 @@ ROOT_PART="${ROOT_PART%%\[*}"
 if [[ "$ROOT_PART" =~ ^/dev/(mmcblk[0-9]+|nvme[0-9]+n[0-9]+)p([0-9]+)$ ]]; then
 	DISK="${BASH_REMATCH[1]}"
 	PART="${BASH_REMATCH[2]}"
-	printf 'Yes\n100%%\n' | parted ---pretend-input-tty "/dev/${DISK}" resizepart "${PART}" || true
-	partx -u "/dev/${DISK}" 2>/dev/null || partprobe "/dev/${DISK}" 2>/dev/null || true
+	if command -v growpart >/dev/null 2>&1; then
+		growpart "/dev/${DISK}" "${PART}" 2>/dev/null || true
+	else
+		echo ", +" | sfdisk -N "${PART}" --no-reread "/dev/${DISK}" 2>/dev/null || true
+	fi
+	partx -u "${PART}" "/dev/${DISK}" 2>/dev/null || partprobe "/dev/${DISK}" 2>/dev/null || true
 elif [[ "$ROOT_PART" =~ ^/dev/(sd[a-z]+)([0-9]+)$ ]]; then
 	DISK="${BASH_REMATCH[1]}"
 	PART="${BASH_REMATCH[2]}"
-	printf 'Yes\n100%%\n' | parted ---pretend-input-tty "/dev/${DISK}" resizepart "${PART}" || true
-	partx -u "/dev/${DISK}" 2>/dev/null || partprobe "/dev/${DISK}" 2>/dev/null || true
+	if command -v growpart >/dev/null 2>&1; then
+		growpart "/dev/${DISK}" "${PART}" 2>/dev/null || true
+	else
+		echo ", +" | sfdisk -N "${PART}" --no-reread "/dev/${DISK}" 2>/dev/null || true
+	fi
+	partx -u "${PART}" "/dev/${DISK}" 2>/dev/null || partprobe "/dev/${DISK}" 2>/dev/null || true
 fi
 btrfs filesystem resize max / || true
 systemctl disable lmpe-btrfs-resize.service || true
@@ -57,6 +65,7 @@ Before=multi-user.target
 
 [Service]
 Type=oneshot
+TimeoutStartSec=60
 ExecStart=/usr/local/sbin/lmpe-btrfs-resize.sh
 RemainAfterExit=yes
 

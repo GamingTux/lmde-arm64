@@ -349,9 +349,9 @@ if target in c:
 ' 2>/dev/null || true
 	fi
 
-	# 21. Initialer updates.json Seed für mintupdate (verhindert FileNotFound-Traceback im Log)
+	# 21. Initialer updates.json Seed für mintupdate (mit gültigem Datum zur Vermeidung von strptime-Tracebacks)
 	install -d -m 755 /etc/skel/.linuxmint/mintupdate
-	echo '{"version": 1, "updates": {}, "checked": "", "notified": ""}' > /etc/skel/.linuxmint/mintupdate/updates.json
+	echo '{"version": 1, "updates": {}, "checked": "1970.01.01", "notified": "1970.01.01"}' > /etc/skel/.linuxmint/mintupdate/updates.json
 
 	# 10. Boot-Parallelisierung: systemd-user-sessions von network.target entkoppeln
 	cat << 'EOF_SESS' > /etc/systemd/system/systemd-user-sessions.service

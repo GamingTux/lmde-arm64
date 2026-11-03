@@ -32,7 +32,7 @@ entry=black,white
 
 # Plymouth für das interaktive First-Boot-Menü beenden und TTY1 aktivieren
 /usr/bin/plymouth deactivate 2>/dev/null || true
-/usr/bin/plymouth quit --wait 2>/dev/null || true
+/usr/bin/plymouth quit 2>/dev/null || true
 chvt 1 2>/dev/null || true
 clear
 
@@ -244,12 +244,12 @@ if whiptail --title "LMPE First-Boot Setup (5/7) - Automatic Login" \
     usermod -aG autologin "$NEW_USER" 2>/dev/null || true
 fi
 
-# Initialer updates.json Seed für mintupdate im User-Home
+# Initialer updates.json Seed für mintupdate im User-Home (mit gültigem Datum zur Vermeidung von strptime-Tracebacks)
 USER_HOME=$(getent passwd "$NEW_USER" | cut -d: -f6)
 if [ -n "$USER_HOME" ] && [ -d "$USER_HOME" ]; then
     mkdir -p "$USER_HOME/.linuxmint/mintupdate"
     if [ ! -f "$USER_HOME/.linuxmint/mintupdate/updates.json" ]; then
-        echo '{"version": 1, "updates": {}, "checked": "", "notified": ""}' > "$USER_HOME/.linuxmint/mintupdate/updates.json"
+        echo '{"version": 1, "updates": {}, "checked": "1970.01.01", "notified": "1970.01.01"}' > "$USER_HOME/.linuxmint/mintupdate/updates.json"
     fi
     chown -R "${NEW_USER}:${NEW_USER}" "$USER_HOME/.linuxmint" 2>/dev/null || true
 fi
@@ -339,7 +339,7 @@ ConditionPathExists=/usr/local/sbin/lmpe-firstboot.sh
 Type=oneshot
 TimeoutStartSec=0
 ExecStartPre=-/usr/bin/plymouth deactivate
-ExecStartPre=-/usr/bin/plymouth quit --wait
+ExecStartPre=-/usr/bin/plymouth quit
 ExecStartPre=-/bin/chvt 1
 ExecStart=/usr/local/sbin/lmpe-firstboot.sh
 StandardInput=tty
