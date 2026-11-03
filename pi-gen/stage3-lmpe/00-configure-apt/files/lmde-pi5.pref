@@ -6,6 +6,10 @@ Package: *
 Pin: origin "archive.raspberrypi.com"
 Pin-Priority: 1000
 
+Package: *:amd64
+Pin: origin "packages.linuxmint.com"
+Pin-Priority: -1
+
 Package: *
 Pin: origin "packages.linuxmint.com"
 Pin-Priority: 700
