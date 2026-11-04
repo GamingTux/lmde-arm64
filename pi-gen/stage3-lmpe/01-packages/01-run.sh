@@ -48,13 +48,10 @@ window-effect-speed=2
 EOF
 rm -f "${ROOTFS_DIR}/usr/share/glib-2.0/schemas/99-lmpe*.override"
 
-# 3. CPU-Governor auf schedutil setzen & Flash/NVMe Readahead Buffer (256 KB)
+# 3. CPU-Governor auf schedutil setzen
 install -d -m 755 "${ROOTFS_DIR}/etc/udev/rules.d"
 echo 'KERNEL=="cpu*", SUBSYSTEM=="cpu", ATTR{cpufreq/scaling_governor}="schedutil"' > "${ROOTFS_DIR}/etc/udev/rules.d/60-ondemand-governor.rules"
-cat << 'EOF' > "${ROOTFS_DIR}/etc/udev/rules.d/60-readahead.rules"
-# LMPE Flash & NVMe Read-Ahead Buffer (256 KB)
-ACTION=="add|change", KERNEL=="nvme[0-9]*n[0-9]*|mmcblk[0-9]*|sd[a-z]*", ATTR{bdi/read_ahead_kb}="256"
-EOF
+rm -f "${ROOTFS_DIR}/etc/udev/rules.d/60-readahead.rules"
 
 # 4. Kernel-VM, Btrfs-Cache & TCP BBR Tuning
 install -d -m 755 "${ROOTFS_DIR}/etc/modules-load.d"
@@ -153,17 +150,14 @@ elif [ -f "${ROOTFS_DIR}/etc/bluetooth/main.conf" ]; then
     sed -i "/\\[Policy\\]/a AutoEnable = true" "${ROOTFS_DIR}/etc/bluetooth/main.conf"
 fi
 
-# 9. Lokaler DNS-Cache via systemd-resolved
+# 9. Lokaler DNS-Cache via systemd-resolved (nutzt Router/DHCP-DNS + schnelle Fallbacks)
 install -d -m 755 "${ROOTFS_DIR}/etc/systemd/resolved.conf.d"
-cat << 'EOF' > "${ROOTFS_DIR}/etc/systemd/resolved.conf.d/adguard-dns.conf"
+rm -f "${ROOTFS_DIR}/etc/systemd/resolved.conf.d/adguard-dns.conf"
+cat << 'EOF' > "${ROOTFS_DIR}/etc/systemd/resolved.conf.d/99-lmpe-dns.conf"
 [Resolve]
-DNS=94.140.14.14 94.140.15.15 2a10:50c0::ad1:ff 2a10:50c0::ad2:ff
-FallbackDNS=94.140.14.14 94.140.15.15 2a10:50c0::ad1:ff 2a10:50c0::ad2:ff
-Domains=~.
-DNSOverTLS=opportunistic
+FallbackDNS=1.1.1.1 9.9.9.9 2606:4700:4700::1111 2620:fe::fe
 Cache=yes
 DNSStubListener=yes
-MulticastDNS=no
 EOF
 rm -f "${ROOTFS_DIR}/etc/resolv.conf"
 cp /etc/resolv.conf "${ROOTFS_DIR}/etc/resolv.conf"
@@ -233,13 +227,7 @@ on_chroot <<- \EOF
 	}
 	PWCONF
 
-	cat <<- 'APTCONF' > /etc/apt/apt.conf.d/99-lmpe-speed.conf
-	// LMPE APT Download- & Update-Optimierungen
-	APT::Acquire::Queue-Mode "host";
-	APT::Acquire::Retries "3";
-	Acquire::http::Pipeline-Depth "5";
-	Acquire::Languages { "environment"; "de"; "en"; };
-	APTCONF
+	rm -f /etc/apt/apt.conf.d/99-lmpe-speed.conf
 
 	# 16. Desktop Environment Variables (/etc/environment)
 	if ! grep -q "QT_QPA_PLATFORM" /etc/environment 2>/dev/null; then
@@ -272,7 +260,8 @@ on_chroot <<- \EOF
 	License: GPL-2+
 	LMDEDOC
 
-	# 19. Vorab-Generierung europäischer Standard-Locales
+	# 19. Vorab-Generierung europäischer Standard-Locales (inkl. debconf-Sicherung gegen Überschreiben bei Upgrades)
+	echo "locales locales/locales_to_be_generated multiselect de_DE.UTF-8 UTF-8, de_AT.UTF-8 UTF-8, de_CH.UTF-8 UTF-8, en_US.UTF-8 UTF-8, en_GB.UTF-8 UTF-8, fr_FR.UTF-8 UTF-8, fr_BE.UTF-8 UTF-8, fr_CH.UTF-8 UTF-8, es_ES.UTF-8 UTF-8, it_IT.UTF-8 UTF-8, nl_NL.UTF-8 UTF-8, nl_BE.UTF-8 UTF-8, pl_PL.UTF-8 UTF-8, pt_PT.UTF-8 UTF-8, pt_BR.UTF-8 UTF-8" | debconf-set-selections 2>/dev/null || true
 	cat <<- 'LOCALECONF' > /etc/locale.gen
 	de_DE.UTF-8 UTF-8
 	de_AT.UTF-8 UTF-8
@@ -338,8 +327,27 @@ ExecStart=/usr/lib/systemd/systemd-user-sessions start
 ExecStop=/usr/lib/systemd/systemd-user-sessions stop
 EOF_SESS
 
+	# 22. Systemd First-Boot Preset-Schutz (verhindert Reaktivierung deaktivierter Dienste bei machine-id=uninitialized)
+	install -d -m 755 /etc/systemd/system-preset
+	cat << 'EOF_PRESET' > /etc/systemd/system-preset/00-lmpe.preset
+disable ssh.service
+disable sshswitch.service
+disable rpi-resize.service
+disable systemd-firstboot.service
+disable rpi-eeprom-update.service
+disable ModemManager.service
+disable lm-sensors.service
+disable glamor-test.service
+disable rp1-test.service
+disable e2scrub_reap.service
+disable e2scrub_all.timer
+disable nfs-blkmap.service
+disable rpc-statd-notify.service
+disable apt-listchanges.timer
+EOF_PRESET
+
 	systemctl enable lightdm ssh.socket blueman-mechanism.service systemd-resolved.service fstrim.timer bluetooth.service earlyoom.service packagekit.service || true
 	systemctl disable ssh.service lm-sensors.service sshswitch.service glamor-test.service rp1-test.service e2scrub_reap.service e2scrub_all.timer rpi-eeprom-update.service ModemManager.service nfs-blkmap.service rpc-statd-notify.service 2>/dev/null || true
-	systemctl mask NetworkManager-wait-online.service systemd-networkd-wait-online.service rpcbind.service rpcbind.socket serial-getty@ttyAMA10.service 2>/dev/null || true
+	systemctl mask NetworkManager-wait-online.service systemd-networkd-wait-online.service rpi-resize.service systemd-firstboot.service serial-getty@ttyAMA10.service 2>/dev/null || true
 	systemctl set-default graphical.target
 EOF

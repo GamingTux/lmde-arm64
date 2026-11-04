@@ -2,8 +2,9 @@
 
 install -d -m 755 "${ROOTFS_DIR}/usr/local/sbin" "${ROOTFS_DIR}/etc/systemd/system" "${ROOTFS_DIR}/etc/systemd/journald.conf.d"
 
-# Persistente systemd-Logs mit Speicherbegrenzung aktivieren
-cat << 'JCONF' > "${ROOTFS_DIR}/etc/systemd/journald.conf.d/00-persistent.conf"
+# Persistente systemd-Logs mit Speicherbegrenzung aktivieren (99- überschreibt 40-rpi-volatile-storage.conf)
+rm -f "${ROOTFS_DIR}/etc/systemd/journald.conf.d/00-persistent.conf"
+cat << 'JCONF' > "${ROOTFS_DIR}/etc/systemd/journald.conf.d/99-persistent.conf"
 [Journal]
 Storage=persistent
 SystemMaxUse=100M
@@ -88,6 +89,9 @@ fi
 # 4. Cinnamon & GNOME Desktop Input Sources Schema-Default setzen
 mkdir -p /usr/share/glib-2.0/schemas
 cat << SKBD > /usr/share/glib-2.0/schemas/zz-lmpe-keyboard.gschema.override
+[org.cinnamon.desktop.input-sources]
+sources=$INPUT_SRC
+
 [org.gnome.desktop.input-sources]
 sources=$INPUT_SRC
 SKBD
@@ -118,11 +122,16 @@ esac
 
 if [ -n "$LOCALE_CHOICE" ]; then
     grep -q "^${LOCALE_CHOICE} UTF-8" /etc/locale.gen 2>/dev/null || echo "${LOCALE_CHOICE} UTF-8" >> /etc/locale.gen
-    update-locale LANG="$LOCALE_CHOICE" LC_ALL="" 2>/dev/null || true
+    if ! locale -a 2>/dev/null | grep -qi "^${LOCALE_CHOICE%.UTF-8}"; then
+        whiptail --title "Language Setup" --infobox "Generating locale ${LOCALE_CHOICE}, please wait..." 8 55
+        locale-gen "$LOCALE_CHOICE" >/dev/null 2>&1 || locale-gen >/dev/null 2>&1 || true
+    fi
+    update-locale --reset LANG="$LOCALE_CHOICE" LANGUAGE="${LOCALE_CHOICE%%.*}" 2>/dev/null || echo "LANG=$LOCALE_CHOICE" > /etc/locale.conf
 fi
 raspi-config nonint do_change_timezone "$TZ_CHOICE" 2>/dev/null || true
 raspi-config nonint do_wifi_country "$WIFI_CC" 2>/dev/null || true
 rfkill unblock wifi 2>/dev/null || true
+nmcli radio wifi on 2>/dev/null || true
 
 # --- 3. Hostname ---
 CURRENT_HOST=$(hostname)
@@ -143,6 +152,9 @@ done
 # --- 4. Wi-Fi Configuration ---
 if whiptail --title "LMPE First-Boot Setup (4/7) - Wi-Fi Setup" \
     --yesno "Would you like to connect to a Wi-Fi network now?\n(Select 'No' if using Ethernet or if you wish to configure Wi-Fi later in the desktop)" 12 70; then
+    rfkill unblock wifi 2>/dev/null || true
+    nmcli radio wifi on 2>/dev/null || true
+    sleep 2
     while true; do
         whiptail --title "Wi-Fi Scan" --infobox "Scanning for Wi-Fi networks..." 8 50
         mapfile -t WIFI_LIST < <(nmcli --terse --fields SSID,SIGNAL,SECURITY device wifi list --rescan yes 2>/dev/null | awk -F: 'NF>=1 && $1!="" && !seen[$1]++ {printf "%s\n%s%% (%s)\n", $1, $2, $3}')
@@ -320,7 +332,7 @@ if whiptail --title "LMPE Setup Complete" \
     --yesno "Setup is complete!\n\nYour configuration and hardware profile have been applied.\n\nA system restart is recommended so all hardware changes (antenna, power management, device overlays) take full effect.\n\nWould you like to restart now?" 15 70; then
     whiptail --title "Rebooting" --infobox "Rebooting system, please wait..." 8 45
     sleep 1
-    systemctl reboot
+    systemctl --no-block reboot
 else
     exit 0
 fi
@@ -330,9 +342,9 @@ chmod 755 "${ROOTFS_DIR}/usr/local/sbin/lmpe-firstboot.sh"
 cat << 'EOF' > "${ROOTFS_DIR}/etc/systemd/system/lmpe-firstboot.service"
 [Unit]
 Description=LMPE Interactive TTY First-Boot Configuration Wizard
-After=systemd-user-sessions.service NetworkManager.service lmpe-btrfs-resize.service
+After=systemd-user-sessions.service NetworkManager.service lmpe-btrfs-resize.service plymouth-quit.service plymouth-quit-wait.service
 Before=lightdm.service display-manager.service getty@tty1.service
-Conflicts=getty@tty1.service
+Conflicts=getty@tty1.service plymouth-quit.service
 ConditionPathExists=/usr/local/sbin/lmpe-firstboot.sh
 
 [Service]

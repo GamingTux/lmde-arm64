@@ -75,5 +75,6 @@ EOF
 
 on_chroot <<- \EOF
 	systemctl disable rpi-resize.service 2>/dev/null || true
+	systemctl mask rpi-resize.service 2>/dev/null || true
 	systemctl enable lmpe-btrfs-resize.service
 EOF

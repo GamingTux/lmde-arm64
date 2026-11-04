@@ -109,6 +109,9 @@ bluez-tools
 cinnamon-l10n
 network-manager-gnome
 pipewire-audio
+synaptic
+fonts-ubuntu
+fonts-noto-color-emoji
 fonts-dejavu-core
 fonts-noto-core
 fonts-liberation

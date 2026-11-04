@@ -71,6 +71,9 @@ apt-get install -y \
   mintupdate \
   mintinstall \
   mintsources \
+  synaptic \
+  fonts-ubuntu \
+  fonts-noto-color-emoji \
   xed \
   xviewer \
   xviewer-plugins \
