@@ -404,9 +404,9 @@ chmod 755 "${ROOTFS_DIR}/usr/local/sbin/lmpe-firstboot.sh"
 cat << 'EOF' > "${ROOTFS_DIR}/etc/systemd/system/lmpe-firstboot.service"
 [Unit]
 Description=LMPE Interactive TTY First-Boot Configuration Wizard
-After=systemd-user-sessions.service NetworkManager.service lmpe-btrfs-resize.service plymouth-quit.service plymouth-quit-wait.service
-Before=lightdm.service display-manager.service getty@tty1.service
-Conflicts=getty@tty1.service plymouth-quit.service
+After=systemd-user-sessions.service NetworkManager.service lmpe-btrfs-resize.service
+Before=lightdm.service display-manager.service getty@tty1.service plymouth-quit-wait.service
+Conflicts=getty@tty1.service
 ConditionPathExists=/usr/local/sbin/lmpe-firstboot.sh
 
 [Service]

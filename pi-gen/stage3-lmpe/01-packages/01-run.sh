@@ -142,7 +142,7 @@ EOF
 done
 
 # 8. Bluetooth beim Booten automatisch aktivieren
-chmod 755 "${ROOTFS_DIR}/etc/bluetooth" 2>/dev/null || true
+chmod 555 "${ROOTFS_DIR}/etc/bluetooth" 2>/dev/null || true
 if grep -q "AutoEnable" "${ROOTFS_DIR}/etc/bluetooth/main.conf" 2>/dev/null; then
     sed -i "s/^#*AutoEnable.*/AutoEnable = true/" "${ROOTFS_DIR}/etc/bluetooth/main.conf"
 elif [ -f "${ROOTFS_DIR}/etc/bluetooth/main.conf" ]; then
