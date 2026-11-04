@@ -3,8 +3,11 @@
 
 # --- Basis-Hardware & Schnittstellen ---
 dtparam=i2c_arm=on
+#dtparam=spi=on
 dtparam=uart0=on
+dtparam=audio=on
 arm_64bit=1
+arm_boost=1
 
 # --- Display, Grafik & Boot ---
 dtoverlay=vc4-kms-v3d
@@ -16,14 +19,15 @@ camera_auto_detect=1
 display_auto_detect=1
 auto_initramfs=1
 
+[cm4]
+otg_mode=1
+
 # --- Compute Module 5 (CM5) Carrier & Laptop Integration ---
 # Aktiviert USB 2.0 Host-Modus für interne Tastatur, Touchpad & Peripherie
 [cm5]
 dtoverlay=dwc2,dr_mode=host
-usb_max_current_enable=1
 
-# --- Raspberry Pi 5 & CM5 PCIe Gen 3 (NVMe SSDs & M.2 Hats) ---
 [pi5]
-dtparam=pciex1_gen=3
+dtoverlay=nospi10
 
 [all]

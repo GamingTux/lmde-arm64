@@ -38,7 +38,7 @@ chvt 1 2>/dev/null || true
 clear
 
 # --- 1. Keyboard Layout ---
-KB_LAYOUT=$(whiptail --title "LMPE First-Boot Setup (1/7) - Keyboard Layout" \
+KB_LAYOUT=$(whiptail --title "LMPE First-Boot Setup (1/8) - Keyboard Layout" \
     --menu "Please select your keyboard layout:" 18 70 8 \
     "us"            "English (US QWERTY)" \
     "gb"            "English (UK QWERTY)" \
@@ -97,11 +97,11 @@ sources=$INPUT_SRC
 SKBD
 glib-compile-schemas /usr/share/glib-2.0/schemas 2>/dev/null || true
 
-whiptail --title "LMPE First-Boot Setup (1/7) - Keyboard Test" \
+whiptail --title "LMPE First-Boot Setup (1/8) - Keyboard Test" \
     --inputbox "Keyboard layout applied. You can test typing here (e.g. Z, Y, @, ?, -, _):\n(Select 'OK' or press Enter to continue)" 12 70 "" 3>&1 1>&2 2>&3 || true
 
 # --- 2. System Language & Timezone ---
-LOCALE_CHOICE=$(whiptail --title "LMPE First-Boot Setup (2/7) - Language & Timezone" \
+LOCALE_CHOICE=$(whiptail --title "LMPE First-Boot Setup (2/8) - Language & Timezone" \
     --menu "Please select your system language and timezone:" 16 70 6 \
     "en_US.UTF-8" "English (US)      - UTC" \
     "en_GB.UTF-8" "English (UK)      - Europe/London" \
@@ -136,7 +136,7 @@ nmcli radio wifi on 2>/dev/null || true
 # --- 3. Hostname ---
 CURRENT_HOST=$(hostname)
 while true; do
-    NEW_HOST=$(whiptail --title "LMPE First-Boot Setup (3/7) - Hostname" \
+    NEW_HOST=$(whiptail --title "LMPE First-Boot Setup (3/8) - Hostname" \
         --inputbox "Enter a network name (hostname) for this Raspberry Pi:" 12 70 "${CURRENT_HOST:-lmpe-pi5}" \
         3>&1 1>&2 2>&3) || NEW_HOST="${CURRENT_HOST:-lmpe-pi5}"
     if echo "$NEW_HOST" | grep -Eq '^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]$'; then
@@ -150,7 +150,7 @@ while true; do
 done
 
 # --- 4. Wi-Fi Configuration ---
-if whiptail --title "LMPE First-Boot Setup (4/7) - Wi-Fi Setup" \
+if whiptail --title "LMPE First-Boot Setup (4/8) - Wi-Fi Setup" \
     --yesno "Would you like to connect to a Wi-Fi network now?\n(Select 'No' if using Ethernet or if you wish to configure Wi-Fi later in the desktop)" 12 70; then
     rfkill unblock wifi 2>/dev/null || true
     nmcli radio wifi on 2>/dev/null || true
@@ -164,12 +164,12 @@ if whiptail --title "LMPE First-Boot Setup (4/7) - Wi-Fi Setup" \
             fi
             continue
         fi
-        SSID=$(whiptail --title "LMPE First-Boot Setup (4/7) - Select Wi-Fi" \
+        SSID=$(whiptail --title "LMPE First-Boot Setup (4/8) - Select Wi-Fi" \
             --menu "Choose your Wi-Fi network (Cancel to skip):" 20 75 10 \
             "${WIFI_LIST[@]}" \
             3>&1 1>&2 2>&3) || break
 
-        PASS_MODE=$(whiptail --title "LMPE First-Boot Setup (4/7) - Password Input" \
+        PASS_MODE=$(whiptail --title "LMPE First-Boot Setup (4/8) - Password Input" \
             --menu "How would you like to enter the Wi-Fi password for '$SSID'?" 13 65 2 \
             "visible" "Show in plain text (Recommended to prevent typos)" \
             "hidden"  "Mask with asterisks (*)" \
@@ -208,7 +208,7 @@ FIRST_USER=$(getent passwd 1000 | cut -d: -f1)
 FIRST_USER=${FIRST_USER:-pi}
 
 while true; do
-    NEW_USER=$(whiptail --title "LMPE First-Boot Setup (5/7) - Username" \
+    NEW_USER=$(whiptail --title "LMPE First-Boot Setup (5/8) - Username" \
         --inputbox "Desired username (lowercase letters, numbers; starts with a letter):" 12 70 "$FIRST_USER" \
         3>&1 1>&2 2>&3) || NEW_USER="$FIRST_USER"
     if echo "$NEW_USER" | grep -Eq '^[a-z][a-z0-9_-]{0,30}$' && [ "$NEW_USER" != "root" ]; then
@@ -219,14 +219,14 @@ while true; do
 done
 
 while true; do
-    PASS1=$(whiptail --title "LMPE First-Boot Setup (5/7) - Password" \
+    PASS1=$(whiptail --title "LMPE First-Boot Setup (5/8) - Password" \
         --passwordbox "Enter new password for user '$NEW_USER':" 12 70 \
         3>&1 1>&2 2>&3) || continue
     if [ -z "$PASS1" ]; then
         whiptail --title "Error" --msgbox "The password cannot be empty." 10 50
         continue
     fi
-    PASS2=$(whiptail --title "LMPE First-Boot Setup (5/7) - Confirm Password" \
+    PASS2=$(whiptail --title "LMPE First-Boot Setup (5/8) - Confirm Password" \
         --passwordbox "Please re-enter the password to confirm:" 12 70 \
         3>&1 1>&2 2>&3) || continue
     if [ "$PASS1" != "$PASS2" ]; then
@@ -249,7 +249,7 @@ for grp in sudo adm dialout cdrom audio users video plugdev input netdev render 
 done
 
 AUTOLOGIN="no"
-if whiptail --title "LMPE First-Boot Setup (5/7) - Automatic Login" \
+if whiptail --title "LMPE First-Boot Setup (5/8) - Automatic Login" \
     --yesno "Would you like to automatically log into the desktop without entering your password on boot?\n\n(Select 'No' to require your password on the login screen)" 12 70; then
     AUTOLOGIN="yes"
     groupadd -f autologin 2>/dev/null || true
@@ -267,11 +267,14 @@ if [ -n "$USER_HOME" ] && [ -d "$USER_HOME" ]; then
 fi
 
 # --- 6. Hardware Platform Profile (Standard Pi vs. Argon ONE UP) ---
-HW_CHOICE=$(whiptail --title "LMPE First-Boot Setup (6/7) - Hardware Profile" \
+HW_CHOICE=$(whiptail --title "LMPE First-Boot Setup (6/8) - Hardware Profile" \
     --menu "Please select the hardware profile for this system:" 14 70 2 \
     "generic" "Standard Raspberry Pi 5 / Compute Module 5 (Universal)" \
     "argon"   "Argon ONE UP Laptop (Battery, suspend, display, fan & CM5 fixes)" \
     3>&1 1>&2 2>&3) || HW_CHOICE="generic"
+
+BOOTCONF="/boot/firmware/config.txt"
+[ ! -f "$BOOTCONF" ] && BOOTCONF="/boot/config.txt"
 
 if [ "$HW_CHOICE" = "argon" ]; then
     whiptail --title "Hardware Setup" --infobox "Installing Argon ONE UP hardware packages and drivers..." 8 65
@@ -279,8 +282,6 @@ if [ "$HW_CHOICE" = "argon" ]; then
         dpkg -i --force-confnew /usr/share/argon-debs/*.deb 2>/dev/null || apt-get install -fy 2>/dev/null || true
     fi
     # Argon ONE UP Aluminiumgehäuse: Externe Antenne (ant2) gezielt für CM5/CM4 aktivieren
-    BOOTCONF="/boot/firmware/config.txt"
-    [ ! -f "$BOOTCONF" ] && BOOTCONF="/boot/config.txt"
     if [ -f "$BOOTCONF" ] && ! grep -q "dtparam=ant2" "$BOOTCONF"; then
         if grep -q "^\[cm5\]" "$BOOTCONF"; then
             sed -i '/^\[cm5\]/a dtparam=ant2' "$BOOTCONF"
@@ -290,15 +291,76 @@ if [ "$HW_CHOICE" = "argon" ]; then
         fi
     fi
     rm -rf /usr/share/argon-debs
+    USB_BOOST_DEF="ON"
     whiptail --title "Hardware Profile" --msgbox "Argon ONE UP hardware profile enabled successfully!" 10 55
 else
     # Remove staging debs on generic hardware
     rm -rf /usr/share/argon-debs
+    USB_BOOST_DEF="OFF"
     whiptail --title "Hardware Profile" --msgbox "Standard Raspberry Pi 5 / Compute Module 5 profile active." 10 65
 fi
 
-# --- 7. Default Desktop Session (X11 vs. Wayland) ---
-SESSION_CHOICE=$(whiptail --title "LMPE First-Boot Setup (7/7) - Desktop Session" \
+# --- 7. Optional Hardware & System Tweaks ---
+TWEAK_CHOICES=$(whiptail --title "LMPE First-Boot Setup (7/8) - Optional System Tweaks" \
+    --checklist "Select optional hardware features and performance tweaks to enable:\n(Use UP/DOWN arrows to navigate, SPACE to toggle [X], ENTER to confirm)" 17 78 6 \
+    "pcie_gen3"  "PCIe Gen 3.0 mode (~850 MB/s for fast NVMe SSDs)" "OFF" \
+    "oc_2800"    "Overclock CPU to 2.8 GHz (Requires active cooling)" "OFF" \
+    "usb_boost"  "Unlock 1.6A USB port current on non-PD 5V power" "$USB_BOOST_DEF" \
+    "ssh_server" "Enable SSH server for remote terminal/SFTP access" "OFF" \
+    "i2c_spi"    "Enable GPIO I2C & SPI buses (Sensors, Displays, HATs)" "ON" \
+    "bt_auto"    "Enable Bluetooth automatically on system startup" "ON" \
+    3>&1 1>&2 2>&3) || TWEAK_CHOICES="\"i2c_spi\" \"bt_auto\""
+
+if [ -f "$BOOTCONF" ]; then
+    # PCIe Gen 3.0
+    sed -i '/^dtparam=pciex1_gen=/d' "$BOOTCONF"
+    if [[ "$TWEAK_CHOICES" == *"pcie_gen3"* ]]; then
+        echo "dtparam=pciex1_gen=3" >> "$BOOTCONF"
+    fi
+
+    # CPU Overclock to 2800 MHz (leave GPU untouched)
+    sed -i '/^arm_freq=/d' "$BOOTCONF"
+    if [[ "$TWEAK_CHOICES" == *"oc_2800"* ]]; then
+        echo "arm_freq=2800" >> "$BOOTCONF"
+    fi
+
+    # USB Max Current Boost (1.6A)
+    sed -i '/^usb_max_current_enable=/d' "$BOOTCONF"
+    if [[ "$TWEAK_CHOICES" == *"usb_boost"* ]] || [ "$HW_CHOICE" = "argon" ]; then
+        echo "usb_max_current_enable=1" >> "$BOOTCONF"
+    fi
+
+    # GPIO I2C & SPI Buses
+    if [[ "$TWEAK_CHOICES" == *"i2c_spi"* ]] || [ "$HW_CHOICE" = "argon" ]; then
+        sed -i 's/^#*dtparam=i2c_arm=.*/dtparam=i2c_arm=on/' "$BOOTCONF"
+        sed -i 's/^#*dtparam=spi=.*/dtparam=spi=on/' "$BOOTCONF"
+    else
+        sed -i 's/^dtparam=i2c_arm=.*/#dtparam=i2c_arm=on/' "$BOOTCONF"
+        sed -i 's/^dtparam=spi=.*/#dtparam=spi=on/' "$BOOTCONF"
+    fi
+fi
+
+# SSH Server (ssh.socket)
+if [[ "$TWEAK_CHOICES" == *"ssh_server"* ]]; then
+    systemctl enable ssh.socket 2>/dev/null || true
+    systemctl start ssh.socket 2>/dev/null || true
+else
+    systemctl disable ssh.socket ssh.service 2>/dev/null || true
+fi
+
+# Bluetooth Auto-Enable on Boot
+if [ -f /etc/bluetooth/main.conf ]; then
+    if [[ "$TWEAK_CHOICES" == *"bt_auto"* ]]; then
+        sed -i "s/^#*AutoEnable.*/AutoEnable = true/" /etc/bluetooth/main.conf 2>/dev/null || true
+        rfkill unblock bluetooth 2>/dev/null || true
+    else
+        sed -i "s/^#*AutoEnable.*/AutoEnable = false/" /etc/bluetooth/main.conf 2>/dev/null || true
+        rfkill block bluetooth 2>/dev/null || true
+    fi
+fi
+
+# --- 8. Default Desktop Session (X11 vs. Wayland) ---
+SESSION_CHOICE=$(whiptail --title "LMPE First-Boot Setup (8/8) - Desktop Session" \
     --menu "Choose the default Cinnamon desktop display session:\n(You can switch sessions anytime on the login screen)" 16 75 2 \
     "cinnamon"         "Cinnamon on X11 (Recommended - Maximum stability)" \
     "cinnamon-wayland" "Cinnamon on Wayland (Experimental - Tear-free rendering)" \
@@ -368,7 +430,7 @@ WantedBy=multi-user.target
 EOF
 
 on_chroot <<- \EOF
-	apt-get purge -y cloud-init rpi-cloud-init-mods rpi-connect-lite rpi-keyboard-config rpi-keyboard-fw-update rpi-usb-gadget rpicam-apps-lite rpi-update libpam-chksshpwd userconf-pi 2>/dev/null || true
+	apt-get purge -y cloud-init rpi-cloud-init-mods rpi-usb-gadget rpi-update libpam-chksshpwd userconf-pi 2>/dev/null || true
 	apt-get autoremove -y --purge 2>/dev/null || true
 	chown root:systemd-journal /var/log/journal 2>/dev/null || true
 	systemctl enable lmpe-firstboot.service

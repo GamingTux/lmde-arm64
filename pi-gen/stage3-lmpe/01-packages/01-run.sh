@@ -60,7 +60,7 @@ echo "i2c-dev" > "${ROOTFS_DIR}/etc/modules-load.d/i2c-dev.conf"
 
 install -d -m 755 "${ROOTFS_DIR}/etc/sysctl.d"
 cat << 'EOF' > "${ROOTFS_DIR}/etc/sysctl.d/99-lmpe-pi5.conf"
-vm.swappiness = 180
+vm.swappiness = 100
 vm.page-cluster = 0
 vm.vfs_cache_pressure = 50
 vm.dirty_background_ratio = 5
@@ -105,7 +105,6 @@ for irq_dir in /proc/irq/[0-9]*; do
             *dwc2*) echo 1 > "$aff_file" 2>/dev/null || true; break ;;
             *v3d*) echo 2 > "$aff_file" 2>/dev/null || true; break ;;
             *vc4*|*hvs*|*mmc0*|*mmc1*) echo 3 > "$aff_file" 2>/dev/null || true; break ;;
-            *rp1*|*xhci*) echo 0 > "$aff_file" 2>/dev/null || true; break ;;
         esac
     done
 done
@@ -219,15 +218,7 @@ on_chroot <<- \EOF
 	TimeoutStopSec=10s
 	USERSVCCONF
 
-	cat <<- 'PWCONF' > /etc/pipewire/pipewire.conf.d/99-low-latency.conf
-	context.properties = {
-	    default.clock.quantum = 512
-	    default.clock.min-quantum = 256
-	    default.clock.max-quantum = 1024
-	}
-	PWCONF
-
-	rm -f /etc/apt/apt.conf.d/99-lmpe-speed.conf
+	rm -f /etc/pipewire/pipewire.conf.d/99-low-latency.conf /etc/apt/apt.conf.d/99-lmpe-speed.conf
 
 	# 16. Desktop Environment Variables (/etc/environment)
 	if ! grep -q "QT_QPA_PLATFORM" /etc/environment 2>/dev/null; then
@@ -331,11 +322,9 @@ EOF_SESS
 	install -d -m 755 /etc/systemd/system-preset
 	cat << 'EOF_PRESET' > /etc/systemd/system-preset/00-lmpe.preset
 disable ssh.service
-disable sshswitch.service
+disable ssh.socket
 disable rpi-resize.service
 disable systemd-firstboot.service
-disable rpi-eeprom-update.service
-disable ModemManager.service
 disable lm-sensors.service
 disable glamor-test.service
 disable rp1-test.service
@@ -346,8 +335,8 @@ disable rpc-statd-notify.service
 disable apt-listchanges.timer
 EOF_PRESET
 
-	systemctl enable lightdm ssh.socket blueman-mechanism.service systemd-resolved.service fstrim.timer bluetooth.service earlyoom.service packagekit.service || true
-	systemctl disable ssh.service lm-sensors.service sshswitch.service glamor-test.service rp1-test.service e2scrub_reap.service e2scrub_all.timer rpi-eeprom-update.service ModemManager.service nfs-blkmap.service rpc-statd-notify.service 2>/dev/null || true
-	systemctl mask NetworkManager-wait-online.service systemd-networkd-wait-online.service rpi-resize.service systemd-firstboot.service serial-getty@ttyAMA10.service 2>/dev/null || true
+	systemctl enable lightdm sshswitch.service rpi-eeprom-update.service ModemManager.service blueman-mechanism.service systemd-resolved.service fstrim.timer bluetooth.service earlyoom.service packagekit.service || true
+	systemctl disable ssh.service ssh.socket lm-sensors.service glamor-test.service rp1-test.service e2scrub_reap.service e2scrub_all.timer nfs-blkmap.service rpc-statd-notify.service 2>/dev/null || true
+	systemctl mask NetworkManager-wait-online.service systemd-networkd-wait-online.service rpi-resize.service systemd-firstboot.service 2>/dev/null || true
 	systemctl set-default graphical.target
 EOF
