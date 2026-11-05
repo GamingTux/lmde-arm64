@@ -72,16 +72,78 @@ net.ipv4.tcp_congestion_control = bbr
 net.ipv4.tcp_fastopen = 3
 EOF
 
-# 5. Standard-Webbrowser auf Firefox setzen (native Optimierungen via rpi-firefox-mods)
+# 5. Standard-Webbrowser auf Firefox setzen & Hardware-WebRender / Zero-Copy DMABUF für Pi 5 aktivieren
 on_chroot << 'EOF'
 update-alternatives --set x-www-browser /usr/bin/firefox || true
 update-alternatives --set gnome-www-browser /usr/bin/firefox || true
 EOF
 
+install -d -m 755 "${ROOTFS_DIR}/etc/firefox/policies"
+cat << 'EOF' > "${ROOTFS_DIR}/etc/firefox/policies/policies.json"
+{
+  "policies": {
+    "EncryptedMediaExtensions": {
+      "Enabled": true,
+      "Locked": false
+    },
+    "Preferences": {
+      "gfx.webrender.all": {
+        "Value": true,
+        "Status": "default"
+      },
+      "gfx.canvas.accelerated": {
+        "Value": true,
+        "Status": "default"
+      },
+      "layers.gpu-process.enabled": {
+        "Value": true,
+        "Status": "default"
+      },
+      "widget.dmabuf.force-enabled": {
+        "Value": true,
+        "Status": "default"
+      },
+      "media.ffmpeg.vaapi.enabled": {
+        "Value": false,
+        "Status": "default"
+      },
+      "media.rdd-process.enabled": {
+        "Value": true,
+        "Status": "default"
+      },
+      "media.av1.enabled": {
+        "Value": true,
+        "Status": "default"
+      },
+      "media.eme.enabled": {
+        "Value": true,
+        "Status": "default"
+      },
+      "media.gmp-widevinecdm.enabled": {
+        "Value": true,
+        "Status": "default"
+      },
+      "media.gmp-widevinecdm.visible": {
+        "Value": true,
+        "Status": "default"
+      },
+      "media.gmp-widevinecdm.version": {
+        "Value": "latest",
+        "Status": "default"
+      },
+      "media.gmp-widevinecdm.autoupdate": {
+        "Value": false,
+        "Status": "default"
+      }
+    }
+  }
+}
+EOF
+
 install -d -m 755 "${ROOTFS_DIR}/etc/chromium.d"
 echo 'export CHROMIUM_FLAGS="$CHROMIUM_FLAGS --enable-remote-extensions"' > "${ROOTFS_DIR}/etc/chromium.d/00-rpi-vars"
 cat << 'EOF' > "${ROOTFS_DIR}/etc/chromium.d/99-lmpe-pi5"
-export CHROMIUM_FLAGS="$CHROMIUM_FLAGS --ozone-platform-hint=auto --enable-gpu-rasterization --enable-oop-rasterization --enable-zero-copy --ignore-gpu-blocklist"
+export CHROMIUM_FLAGS="$CHROMIUM_FLAGS --ozone-platform-hint=auto --enable-gpu-rasterization --enable-oop-rasterization --enable-zero-copy --ignore-gpu-blocklist --num-raster-threads=4 --enable-features=CanvasOopRasterization,BackForwardCache,ParallelDownloading"
 EOF
 
 # 6. WLAN-Powersave deaktivieren
@@ -223,6 +285,9 @@ on_chroot <<- \EOF
 	# 16. Desktop Environment Variables (/etc/environment)
 	if ! grep -q "QT_QPA_PLATFORM" /etc/environment 2>/dev/null; then
 		echo 'QT_QPA_PLATFORM="wayland;xcb"' >> /etc/environment
+	fi
+	if ! grep -q "MOZ_X11_EGL" /etc/environment 2>/dev/null; then
+		echo 'MOZ_X11_EGL=1' >> /etc/environment
 	fi
 
 	# 17. PolicyKit-Regeln für Update Manager (AptKit & PackageKit)
