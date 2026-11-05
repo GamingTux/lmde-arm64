@@ -281,6 +281,7 @@ if [ "$HW_CHOICE" = "argon" ]; then
     if compgen -G "/usr/share/argon-debs/*.deb" >/dev/null; then
         dpkg -i --force-confnew /usr/share/argon-debs/*.deb 2>/dev/null || apt-get install -fy 2>/dev/null || true
     fi
+    /usr/bin/rpi-suspend set-profile argon-oneup 2>/dev/null || true
     # Argon ONE UP Aluminiumgehäuse: Externe Antenne (ant2) gezielt für CM5/CM4 aktivieren
     if [ -f "$BOOTCONF" ] && ! grep -q "dtparam=ant2" "$BOOTCONF"; then
         if grep -q "^\[cm5\]" "$BOOTCONF"; then
@@ -296,6 +297,7 @@ if [ "$HW_CHOICE" = "argon" ]; then
 else
     # Remove staging debs on generic hardware
     rm -rf /usr/share/argon-debs
+    /usr/bin/rpi-suspend set-profile generic 2>/dev/null || true
     USB_BOOST_DEF="OFF"
     whiptail --title "Hardware Profile" --msgbox "Standard Raspberry Pi 5 / Compute Module 5 profile active." 10 65
 fi

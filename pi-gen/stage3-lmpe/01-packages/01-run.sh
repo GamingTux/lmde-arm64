@@ -161,17 +161,17 @@ EOF
 rm -f "${ROOTFS_DIR}/etc/resolv.conf"
 cp /etc/resolv.conf "${ROOTFS_DIR}/etc/resolv.conf"
 
-# 10. Offizielles LMPE Artwork-, Bootscreen- & Theme-Paket installieren
+# 10. Offizielles LMPE Artwork-, Bootscreen- & Theme-Paket sowie universelles rpi-suspend installieren
 install -d -m 755 "${ROOTFS_DIR}/tmp/lmpe-theme"
-cp files/debs/lmpe-theme_*.deb "${ROOTFS_DIR}/tmp/lmpe-theme/"
+cp files/debs/lmpe-theme_*.deb files/debs/rpi-suspend_*.deb "${ROOTFS_DIR}/tmp/lmpe-theme/"
 on_chroot <<- \EOF
-	dpkg -i --force-confnew /tmp/lmpe-theme/lmpe-theme_*.deb || apt-get install -fy
+	dpkg -i --force-confnew /tmp/lmpe-theme/*.deb || apt-get install -fy
 	rm -rf /tmp/lmpe-theme
 EOF
 
 # 13. Argon ONE UP Hardware-Pakete für First-Boot Staging bereitstellen (Installation nur bei Auswahl)
 install -d -m 755 "${ROOTFS_DIR}/usr/share/argon-debs"
-for deb in files/debs/argon-oneup-*.deb files/debs/rpi-vc4-edp*.deb files/debs/rpi-fake-sleep*.deb files/debs/cm5-mmc-fix*.deb; do
+for deb in files/debs/argon-oneup-*.deb files/debs/rpi-vc4-edp*.deb files/debs/cm5-mmc-fix*.deb; do
 	[ -f "$deb" ] && cp "$deb" "${ROOTFS_DIR}/usr/share/argon-debs/"
 done
 
