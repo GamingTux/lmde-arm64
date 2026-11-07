@@ -12,7 +12,7 @@ on:
     - cron: '0 3 * * 1'
 
 concurrency:
-  group: build-lmpe-repo
+  group: build-lmde-arm64-repo
   cancel-in-progress: false
 
 permissions:

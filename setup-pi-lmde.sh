@@ -6,13 +6,13 @@ if [[ "$EUID" -ne 0 ]]; then
   exit 1
 fi
 
-# Hardware check: LMPE Cortex-A76 binaries will crash with SIGILL on older Pi models
+# Hardware check: Cortex-A76 binaries will crash with SIGILL on older Pi models
 if [[ -f /sys/firmware/devicetree/base/model ]]; then
   MODEL="$(tr -d '\0' < /sys/firmware/devicetree/base/model)"
   if [[ "$MODEL" != *"Raspberry Pi 5"* && "$MODEL" != *"Compute Module 5"* && "$MODEL" != *"Raspberry Pi 500"* ]]; then
-    echo "❌ ERROR: LMPE is exclusively engineered for Raspberry Pi 5 / Compute Module 5 / Pi 500 (Cortex-A76)." >&2
+    echo "❌ ERROR: This LMDE 7 ARM64 port is exclusively engineered for Raspberry Pi 5 / Compute Module 5 / Pi 500 (Cortex-A76)." >&2
     echo "Detected hardware: $MODEL" >&2
-    echo "Older generations (Pi 4, Pi 3, Pi Zero 2W) lack ARMv8.2-A + crypto + dotprod instructions and cannot run LMPE." >&2
+    echo "Older generations (Pi 4, Pi 3, Pi Zero 2W) lack ARMv8.2-A + crypto + dotprod instructions." >&2
     exit 1
   fi
 fi
@@ -23,7 +23,7 @@ echo ">>> [1/6] Installing prerequisites (curl, wget, gpg, ca-certificates)..."
 apt-get update
 apt-get install -y curl wget gnupg ca-certificates
 
-echo ">>> [2/6] Importing GPG keys for LMPE (lmde-arm64) and Linux Mint..."
+echo ">>> [2/6] Importing GPG keys for lmde-arm64 and Linux Mint..."
 mkdir -p /usr/share/keyrings
 curl -fsSL "https://gamingtux.github.io/lmde-arm64/lmde-arm64.gpg" -o /usr/share/keyrings/lmde-arm64.gpg
 chmod 644 /usr/share/keyrings/lmde-arm64.gpg
@@ -58,7 +58,7 @@ Pin: origin "packages.linuxmint.com"
 Pin-Priority: 700
 EOF
 
-echo ">>> [5/6] Installing pure LMDE 7 (Cinnamon Wayland) desktop & official Mint tools..."
+echo ">>> [5/6] Installing LMDE 7 (Cinnamon Wayland) desktop & official Mint tools..."
 apt-get update && apt-get full-upgrade -y
 apt-get install -y \
   cinnamon \
@@ -108,10 +108,11 @@ apt-get install -y \
   firefox \
   rpi-firefox-mods \
   ffmpegthumbnailer \
+  fastfetch \
   plymouth \
   plymouth-themes
 
-apt-get purge -y 'xserver-xorg*' slick-greeter lmpe-theme 2>/dev/null || true
+apt-get purge -y 'xserver-xorg*' slick-greeter 2>/dev/null || true
 apt-get autoremove -y --purge 2>/dev/null || true
 
 echo ">>> [6/6] Configuring pure Wayland LightDM session & official LMDE Plymouth bootscreen..."
@@ -148,7 +149,7 @@ EOF
 chmod 755 /usr/sbin/lightdm-wayland-session
 
 rm -f /etc/lightdm/lightdm.conf.d/90-slick-greeter.conf
-cat << 'EOF' > /etc/lightdm/lightdm.conf.d/90-lmpe-wayland.conf
+cat << 'EOF' > /etc/lightdm/lightdm.conf.d/90-lmde-wayland.conf
 [SeatDefaults]
 user-session=cinnamon-wayland
 
@@ -240,7 +241,7 @@ for f in \
   /usr/share/xsessions/lightdm-xsession.desktop \
   /usr/share/xsessions/openbox.desktop \
   /usr/share/wayland-sessions/labwc.desktop; do
-  dpkg-divert --package lmpe --add --rename --divert "${f}.disabled" "$f" 2>/dev/null || true
+  dpkg-divert --package lmde-arm64 --add --rename --divert "${f}.disabled" "$f" 2>/dev/null || true
   rm -f "${f}.disabled"
 done
 

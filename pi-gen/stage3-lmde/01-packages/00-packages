@@ -64,6 +64,7 @@ rpi-firefox-mods
 libwidevinecdm0
 ffmpeg
 ffmpegthumbnailer
+fastfetch
 pipewire-audio
 libspa-0.2-bluetooth
 blueman

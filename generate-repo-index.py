@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-LMPE ARM64 APT Repository - Web Catalog Generator
+LMDE 7 ARM64 APT Repository - Web Catalog Generator
 Generates a static, interactive, searchable index.html for GitHub Pages.
 """
 
@@ -73,7 +73,7 @@ def get_packages(repo_dir):
                         "architecture": arch,
                         "size": size,
                         "filename": f"pool/main/{deb}",
-                        "description": "LMPE ARM64 package"
+                        "description": "LMDE 7 ARM64 package"
                     })
         return pkgs
 
@@ -116,7 +116,7 @@ def generate_html(repo_dir):
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LMPE ARM64 APT Repository — Gigi (Pi 5 & CM5)</title>
+  <title>LMDE 7 ARM64 APT Repository — Gigi (Pi 5 & CM5)</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍃</text></svg>">
   <style>
     :root {{
@@ -350,8 +350,8 @@ def generate_html(repo_dir):
   <div class="container">
     <header>
       <div class="logo">🍃</div>
-      <h1>LMPE <span>ARM64</span> Repository</h1>
-      <p class="subtitle">Official Debian 13 (Trixie) &amp; Linux Mint (Gigi) package repository optimized with Cortex-A76 microarchitecture tuning for Raspberry Pi 5 and Compute Module 5.</p>
+      <h1>LMDE 7 <span>ARM64</span> Repository</h1>
+      <p class="subtitle">Debian 13 (Trixie) &amp; Linux Mint Debian Edition 7 (Gigi) package repository compiled with Cortex-A76 microarchitecture tuning for Raspberry Pi 5, Compute Module 5 &amp; Pi 500.</p>
       <div class="badges">
         <span class="badge highlight">Suite: gigi</span>
         <span class="badge highlight">Component: main</span>
@@ -364,12 +364,12 @@ def generate_html(repo_dir):
 
     <div class="card">
       <div class="card-title">🚀 Quick Setup Instructions</div>
-      <pre class="code-block"><button class="copy-btn" onclick="copySetup()">Copy</button><code id="setup-cmd"><span class="code-comment"># 1. Download and install LMPE GPG keyring</span>
+      <pre class="code-block"><button class="copy-btn" onclick="copySetup()">Copy</button><code id="setup-cmd"><span class="code-comment"># 1. Download and install lmde-arm64 GPG keyring</span>
 sudo mkdir -p /etc/apt/keyrings
 sudo curl -fsSL https://gamingtux.github.io/lmde-arm64/lmde-arm64.gpg -o /etc/apt/keyrings/lmde-arm64.gpg
 
-<span class="code-comment"># 2. Add LMPE APT repository source</span>
-echo "deb [signed-by=/etc/apt/keyrings/lmde-arm64.gpg] https://gamingtux.github.io/lmde-arm64 gigi main" | sudo tee /etc/apt/sources.list.d/lmpe.list
+<span class="code-comment"># 2. Add lmde-arm64 APT repository source</span>
+echo "deb [arch=arm64 signed-by=/etc/apt/keyrings/lmde-arm64.gpg] https://gamingtux.github.io/lmde-arm64 gigi main" | sudo tee /etc/apt/sources.list.d/lmde-arm64.list
 
 <span class="code-comment"># 3. Update package index</span>
 sudo apt update</code></pre>
@@ -401,7 +401,7 @@ sudo apt update</code></pre>
     </div>
 
     <footer>
-      <p>LMPE (Unofficial Linux Mint Pi Edition) • Community Project by GamingTux • Built with ❤️ for Raspberry Pi 5 &amp; CM5 • <a href="https://github.com/GamingTux/lmde-arm64" target="_blank" rel="noopener">GitHub Repository</a></p>
+      <p>LMDE 7 ARM64 (Unofficial Community Port) • Project by GamingTux • Built for Raspberry Pi 5, CM5 &amp; Pi 500 • <a href="https://github.com/GamingTux/lmde-arm64" target="_blank" rel="noopener">GitHub Repository</a></p>
     </footer>
   </div>
 
@@ -425,7 +425,7 @@ sudo apt update</code></pre>
     function copySetup() {{
       const text = `sudo mkdir -p /etc/apt/keyrings
 sudo curl -fsSL https://gamingtux.github.io/lmde-arm64/lmde-arm64.gpg -o /etc/apt/keyrings/lmde-arm64.gpg
-echo "deb [signed-by=/etc/apt/keyrings/lmde-arm64.gpg] https://gamingtux.github.io/lmde-arm64 gigi main" | sudo tee /etc/apt/sources.list.d/lmpe.list
+echo "deb [arch=arm64 signed-by=/etc/apt/keyrings/lmde-arm64.gpg] https://gamingtux.github.io/lmde-arm64 gigi main" | sudo tee /etc/apt/sources.list.d/lmde-arm64.list
 sudo apt update`;
       navigator.clipboard.writeText(text).then(() => {{
         const btn = document.querySelector('.copy-btn');

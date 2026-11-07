@@ -26,7 +26,7 @@ for mod in btrfs zstd_compress crc32c; do
 done
 
 # 4. First-Boot Online-Resize für Btrfs-Root-Dateisystem einrichten
-cat << 'EOF' > "${ROOTFS_DIR}/usr/local/sbin/lmpe-btrfs-resize.sh"
+cat << 'EOF' > "${ROOTFS_DIR}/usr/local/sbin/btrfs-root-resize.sh"
 #!/bin/bash
 set -e
 ROOT_PART="$(findmnt -n -o SOURCE /)"
@@ -51,11 +51,11 @@ elif [[ "$ROOT_PART" =~ ^/dev/(sd[a-z]+)([0-9]+)$ ]]; then
 	partx -u "${PART}" "/dev/${DISK}" 2>/dev/null || partprobe "/dev/${DISK}" 2>/dev/null || true
 fi
 btrfs filesystem resize max / || true
-systemctl disable lmpe-btrfs-resize.service || true
+systemctl disable btrfs-root-resize.service || true
 EOF
-chmod 755 "${ROOTFS_DIR}/usr/local/sbin/lmpe-btrfs-resize.sh"
+chmod 755 "${ROOTFS_DIR}/usr/local/sbin/btrfs-root-resize.sh"
 
-cat << 'EOF' > "${ROOTFS_DIR}/etc/systemd/system/lmpe-btrfs-resize.service"
+cat << 'EOF' > "${ROOTFS_DIR}/etc/systemd/system/btrfs-root-resize.service"
 [Unit]
 Description=Resize Btrfs root filesystem on first boot
 DefaultDependencies=no
@@ -65,7 +65,7 @@ Before=multi-user.target
 [Service]
 Type=oneshot
 TimeoutStartSec=60
-ExecStart=/usr/local/sbin/lmpe-btrfs-resize.sh
+ExecStart=/usr/local/sbin/btrfs-root-resize.sh
 RemainAfterExit=yes
 
 [Install]
@@ -75,5 +75,5 @@ EOF
 on_chroot <<- \EOF
 	systemctl disable rpi-resize.service 2>/dev/null || true
 	systemctl mask rpi-resize.service 2>/dev/null || true
-	systemctl enable lmpe-btrfs-resize.service
+	systemctl enable btrfs-root-resize.service
 EOF

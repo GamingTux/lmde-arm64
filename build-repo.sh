@@ -99,7 +99,7 @@ rm -f "$REPO_DIR"/pool/main/*dbgsym*.deb \
       "$REPO_DIR"/pool/main/rpi-vc4-edp*.deb \
       "$REPO_DIR"/pool/main/rpi-fake-sleep*.deb \
       "$REPO_DIR"/pool/main/cm5-mmc-fix*.deb \
-      "$REPO_DIR"/pool/main/lmpe-theme*.deb \
+      "$REPO_DIR"/pool/main/*-theme_*+pi5_all.deb \
       "$REPO_DIR"/pool/main/slick-greeter*.deb \
       "$REPO_DIR"/pool/main/xserver-xorg*.deb \
       "$REPO_DIR"/pool/main/xserver-common*.deb \
@@ -154,8 +154,8 @@ EOF
       gzip -9c "dists/${SUITE}/main/binary-arm64/Packages" > "dists/${SUITE}/main/binary-arm64/Packages.gz" 2>/dev/null || true
     fi
   )
-  echo "deb [trusted=yes] file:${REPO_DIR} ${SUITE} main" > /etc/apt/sources.list.d/lmpe-local.list
-  apt-get update -o Dir::Etc::sourcelist="sources.list.d/lmpe-local.list" \
+  echo "deb [trusted=yes] file:${REPO_DIR} ${SUITE} main" > /etc/apt/sources.list.d/lmde-local.list
+  apt-get update -o Dir::Etc::sourcelist="sources.list.d/lmde-local.list" \
                  -o Dir::Etc::sourceparts="-" \
                  -o APT::Get::List-Cleanup="0" >/dev/null 2>&1 || apt-get update >/dev/null 2>&1 || true
 }
@@ -190,7 +190,7 @@ discovered = []
 for comp in components:
     url = f"http://packages.linuxmint.com/dists/gigi/{comp}/source/Sources.gz"
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "LMPE-AutoDiscovery/2.0"})
+        req = urllib.request.Request(url, headers={"User-Agent": "LMDE-ARM64-AutoDiscovery/2.0"})
         with urllib.request.urlopen(req, timeout=15) as resp:
             content = gzip.decompress(resp.read()).decode("utf-8", errors="ignore")
             for stanza in content.split("\n\n"):
@@ -224,7 +224,7 @@ BUILD_FAILED=0
 ALLOWED_SOURCES=()
 FINALIZED=0
 
-# Optionale lokale LMPE-Pakete aus packages/ automatisch bauen, falls vorhanden
+# Optionale lokale Pakete aus packages/ automatisch bauen, falls vorhanden
 if [[ -d "$ROOT_DIR/packages" ]]; then
   for pkg_dir in "$ROOT_DIR"/packages/*; do
     [[ -d "$pkg_dir/DEBIAN" ]] || continue
@@ -269,8 +269,8 @@ finalize_and_sign_repo() {
 
     echo "[$(date -u '+%H:%M:%S')] 📦 Generiere APT-Repository-Index und GPG-Signaturen..."
     apt-ftparchive \
-      -o APT::FTPArchive::Release::Origin="LMPE" \
-      -o APT::FTPArchive::Release::Label="LMPE" \
+      -o APT::FTPArchive::Release::Origin="LMDE-ARM64" \
+      -o APT::FTPArchive::Release::Label="LMDE-ARM64" \
       -o APT::FTPArchive::Release::Suite="${SUITE}" \
       -o APT::FTPArchive::Release::Codename="${SUITE}" \
       -o APT::FTPArchive::Release::Architectures="arm64" \
@@ -317,7 +317,7 @@ finalize_and_sign_repo() {
 trap finalize_and_sign_repo EXIT
 
 {
-  echo "## 🛠️ LMPE ARM64 (Cortex-A76) Build-Dashboard"
+  echo "## 🛠️ LMDE 7 ARM64 (Cortex-A76) Build-Dashboard"
   echo ""
   echo "| # | Paket | Version | Optimierung | Status | Dauer |"
   echo "|---|---|---|---|---|---|"
@@ -605,6 +605,9 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
       # glibc nutzt in debian/rules eigenes HOST_CFLAGS statt dpkg-buildflags; BTI-Zwang (-z,force-bti / --enable-bti) für Cortex-A76 (Armv8.2 ohne BTI) deaktivieren
       sed -i "s|^HOST_CFLAGS =.*|HOST_CFLAGS = -pipe -O2 ${ARCH_FLAGS} -ftree-vectorize -fomit-frame-pointer -fno-math-errno -fdebug-prefix-map=\$(CURDIR)=. \$(call xx,extra_cflags)|" debian/rules || true
       grep -rl -- 'force-bti\|enable-bti' debian/ sysdeps/ Makeconfig configure* 2>/dev/null | xargs -r sed -i 's/--enable-bti/--disable-bti/g; s/-Wl,-z,force-bti,--fatal-warnings//g; s/-Wl,-z,force-bti//g; s/-z,force-bti//g; s/-z force-bti//g' || true
+    elif [[ "$pkg" == "fastfetch" ]]; then
+      # Deaktiviere Apple-Silicon Asahi-DRM-Check (auf Raspberry Pi 5 unnötig)
+      sed -i 's|drm/asahi_drm.h|drm/nonexistent_asahi.h|g' CMakeLists.txt || true
     elif [[ "$pkg" == "mesa" ]]; then
       echo "   🎨 Optimiere Mesa für Raspberry Pi 5 (V3D/VC4/Zink/LLVMpipe only – entferne AMD/Intel/Nvidia/Qualcomm/Mali Ballast)..."
       sed -i 's/-Dbuild-tests=true/-Dbuild-tests=false/g' debian/rules || true
@@ -622,7 +625,7 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
     fi
 
     # Lokales Versions-Suffix +pi5 an den Changelog anhängen
-    if ! DEBEMAIL="builder@localhost" DEBFULLNAME="LMPE Builder" dch --force-distribution --local +pi5 --distribution "${SUITE}" "Compiled for Raspberry Pi 5 Cortex-A76" < /dev/null >> "$LOG_FILE" 2>&1; then
+    if ! DEBEMAIL="builder@localhost" DEBFULLNAME="LMDE ARM64 Builder" dch --force-distribution --local +pi5 --distribution "${SUITE}" "Compiled for Raspberry Pi 5 Cortex-A76" < /dev/null >> "$LOG_FILE" 2>&1; then
       STEP_OK=0
     else
       sed -i '1s/+pi51)/+pi5)/' debian/changelog

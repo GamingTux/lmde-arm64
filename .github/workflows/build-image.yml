@@ -1,4 +1,4 @@
-name: Build Raspberry Pi 5 LMPE Btrfs Image (pi-gen)
+name: Build Raspberry Pi 5 LMDE 7 ARM64 Btrfs Image (pi-gen)
 
 on:
   workflow_dispatch:
@@ -125,12 +125,12 @@ jobs:
 
           IMG_XZ="$(ls -1 *.img.xz | head -n 1)"
           {
-            echo "## 🍓🍃 LMPE ARM64 (LMDE 7 \"Gigi\" / Cinnamon Wayland) Image for Raspberry Pi 5 & Compute Module 5"
+            echo "## 🍓🍃 LMDE 7 ARM64 (\"Gigi\" / Cinnamon Wayland) Image for Raspberry Pi 5, CM5 & Pi 500"
             echo ""
             echo "> **Pure Linux Mint Debian Edition (LMDE 7 \"Gigi\") experience on Raspberry Pi 5 — running 100% pure Wayland.**  "
             echo "> Built upon **Debian 13 (Trixie)**, official **LMDE 7** adjustments, and **Raspberry Pi 5 (BCM2712 / Cortex-A76)** native packages, with zero Xorg server bloat."
             echo "> "
-            echo "> *Disclaimer: LMPE is an independent community port by GamingTux and is not affiliated with, sponsored by, or endorsed by the Linux Mint team.*"
+            echo "> *Disclaimer: This is an independent community port by GamingTux and is not affiliated with, sponsored by, or endorsed by the Linux Mint team.*"
             echo ""
             echo "### ✨ Key Release Highlights"
             echo "- **🍃 Pure LMDE 7 Desktop Experience:** Authentic Linux Mint Debian Edition 7 (*Gigi*) desktop with Cinnamon 6.6, official \`debian-system-adjustments\`, official \`mint-logo\` Plymouth boot splash, official Mint wallpapers & Mint-Y themes, Warpinator, Timeshift, Gufw, MintWelcome, MintStick, MintReport, MintBackup, MintLocale, Bulky, Sticky Notes, Thingy, Hypnotix, Celluloid & Drawing."
@@ -160,7 +160,7 @@ jobs:
               -R "${GITHUB_REPOSITORY}" \
               --target "${GITHUB_SHA}" \
               --draft \
-              --title "LMPE (LMDE 7 Wayland) - Pi 5 & CM5 ARM64 Btrfs Image ($TAG)" \
+              --title "LMDE 7 ARM64 (Wayland) - Pi 5 & CM5 Btrfs Image ($TAG)" \
               --notes-file release_body.md; then
               CREATED=1
               break

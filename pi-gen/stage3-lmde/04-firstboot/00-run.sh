@@ -12,7 +12,7 @@ RuntimeMaxUse=50M
 JCONF
 install -d -m 2755 "${ROOTFS_DIR}/var/log/journal"
 
-cat << 'EOF' > "${ROOTFS_DIR}/usr/local/sbin/lmpe-firstboot.sh"
+cat << 'EOF' > "${ROOTFS_DIR}/usr/local/sbin/lmde-firstboot.sh"
 #!/bin/bash
 set -u
 
@@ -38,7 +38,7 @@ chvt 1 2>/dev/null || true
 clear
 
 # --- 1. Keyboard Layout ---
-KB_LAYOUT=$(whiptail --title "LMPE First-Boot Setup (1/5) - Keyboard Layout" \
+KB_LAYOUT=$(whiptail --title "LMDE First-Boot Setup (1/5) - Keyboard Layout" \
     --menu "Please select your keyboard layout:" 20 70 12 \
     "us"            "English (US QWERTY)" \
     "gb"            "English (UK QWERTY)" \
@@ -60,8 +60,8 @@ case "$KB_LAYOUT" in
 esac
 
 # 1. Configure system-wide /etc/default/keyboard
-grep -q "^XKBLAYOUT=" /etc/default/keyboard && sed -i "s/^XKBLAYOUT=.*/XKBLAYOUT=\"$XKB_LAYOUT\"/" /etc/default/keyboard || echo "XKBLAYOUT=\"$XKB_LAYOUT\"" >> /etc/default/keyboard
-grep -q "^XKBVARIANT=" /etc/default/keyboard && sed -i "s/^XKBVARIANT=.*/XKBVARIANT=\"$XKB_VARIANT\"/" /etc/default/keyboard || echo "XKBVARIANT=\"$XKB_VARIANT\"" >> /etc/default/keyboard
+grep -q "^XKBLAYOUT=" /etc/default/keyboard && sed -i "s/^XKBLAYOUT=.*/XKBLAYOUT=\"$XKB_LAYOUT\"/" /etc/default/keyboard || echo "XKBLAYOUT=\"$XKB_LAYOUT\"">> /etc/default/keyboard
+grep -q "^XKBVARIANT=" /etc/default/keyboard && sed -i "s/^XKBVARIANT=.*/XKBVARIANT=\"$XKB_VARIANT\"/" /etc/default/keyboard || echo "XKBVARIANT=\"$XKB_VARIANT\"">> /etc/default/keyboard
 grep -q "^XKBMODEL=" /etc/default/keyboard || echo 'XKBMODEL="pc105"' >> /etc/default/keyboard
 
 # 2. Apply immediately on TTY so Wi-Fi & user password prompts use the selected layout
@@ -90,7 +90,7 @@ else
 fi
 
 mkdir -p /usr/share/glib-2.0/schemas
-cat << SKBD > /usr/share/glib-2.0/schemas/zz-lmpe-keyboard.gschema.override
+cat << SKBD > /usr/share/glib-2.0/schemas/zz-lmde-keyboard.gschema.override
 [org.cinnamon.desktop.input-sources]
 sources=$INPUT_SRC
 
@@ -99,11 +99,11 @@ sources=$INPUT_SRC
 SKBD
 glib-compile-schemas /usr/share/glib-2.0/schemas 2>/dev/null || true
 
-whiptail --title "LMPE First-Boot Setup (1/5) - Keyboard Test" \
+whiptail --title "LMDE First-Boot Setup (1/5) - Keyboard Test" \
     --inputbox "Keyboard layout applied. You can test typing here (e.g. Z, Y, @, ?, -, _):\n(Select 'OK' or press Enter to continue)" 12 70 "" 3>&1 1>&2 2>&3 || true
 
 # --- 2. System Language & Timezone ---
-LOCALE_CHOICE=$(whiptail --title "LMPE First-Boot Setup (2/5) - Language & Timezone" \
+LOCALE_CHOICE=$(whiptail --title "LMDE First-Boot Setup (2/5) - Language & Timezone" \
     --menu "Please select your system language and timezone:" 20 70 11 \
     "en_US.UTF-8" "English (US)      - UTC" \
     "en_GB.UTF-8" "English (UK)      - Europe/London" \
@@ -150,9 +150,9 @@ nmcli radio wifi on 2>/dev/null || true
 # --- 3. Hostname ---
 CURRENT_HOST=$(hostname)
 while true; do
-    NEW_HOST=$(whiptail --title "LMPE First-Boot Setup (3/5) - Hostname" \
-        --inputbox "Enter a network name (hostname) for this Raspberry Pi:" 12 70 "${CURRENT_HOST:-lmpe-pi5}" \
-        3>&1 1>&2 2>&3) || NEW_HOST="${CURRENT_HOST:-lmpe-pi5}"
+    NEW_HOST=$(whiptail --title "LMDE First-Boot Setup (3/5) - Hostname" \
+        --inputbox "Enter a network name (hostname) for this Raspberry Pi:" 12 70 "${CURRENT_HOST:-lmde-pi5}" \
+        3>&1 1>&2 2>&3) || NEW_HOST="${CURRENT_HOST:-lmde-pi5}"
     if echo "$NEW_HOST" | grep -Eq '^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]$'; then
         raspi-config nonint do_hostname "$NEW_HOST" 2>/dev/null || hostnamectl set-hostname "$NEW_HOST" 2>/dev/null || true
         echo "$NEW_HOST" > /etc/hostname
@@ -164,7 +164,7 @@ while true; do
 done
 
 # --- 4. Wi-Fi Configuration ---
-if whiptail --title "LMPE First-Boot Setup (4/5) - Wi-Fi Setup" \
+if whiptail --title "LMDE First-Boot Setup (4/5) - Wi-Fi Setup" \
     --yesno "Would you like to connect to a Wi-Fi network now?\n(Select 'No' if using Ethernet or if you wish to configure Wi-Fi later in the desktop)" 12 70; then
     rfkill unblock wifi 2>/dev/null || true
     nmcli radio wifi on 2>/dev/null || true
@@ -178,12 +178,12 @@ if whiptail --title "LMPE First-Boot Setup (4/5) - Wi-Fi Setup" \
             fi
             continue
         fi
-        SSID=$(whiptail --title "LMPE First-Boot Setup (4/5) - Select Wi-Fi" \
+        SSID=$(whiptail --title "LMDE First-Boot Setup (4/5) - Select Wi-Fi" \
             --menu "Choose your Wi-Fi network (Cancel to skip):" 20 75 10 \
             "${WIFI_LIST[@]}" \
             3>&1 1>&2 2>&3) || break
 
-        PASS_MODE=$(whiptail --title "LMPE First-Boot Setup (4/5) - Password Input" \
+        PASS_MODE=$(whiptail --title "LMDE First-Boot Setup (4/5) - Password Input" \
             --menu "How would you like to enter the Wi-Fi password for '$SSID'?" 13 65 2 \
             "visible" "Show in plain text (Recommended to prevent typos)" \
             "hidden"  "Mask with asterisks (*)" \
@@ -222,7 +222,7 @@ FIRST_USER=$(getent passwd 1000 | cut -d: -f1)
 FIRST_USER=${FIRST_USER:-pi}
 
 while true; do
-    NEW_USER=$(whiptail --title "LMPE First-Boot Setup (5/5) - Username" \
+    NEW_USER=$(whiptail --title "LMDE First-Boot Setup (5/5) - Username" \
         --inputbox "Desired username (lowercase letters, numbers; starts with a letter):" 12 70 "$FIRST_USER" \
         3>&1 1>&2 2>&3) || NEW_USER="$FIRST_USER"
     if echo "$NEW_USER" | grep -Eq '^[a-z][a-z0-9_-]{0,30}$' && [ "$NEW_USER" != "root" ]; then
@@ -233,14 +233,14 @@ while true; do
 done
 
 while true; do
-    PASS1=$(whiptail --title "LMPE First-Boot Setup (5/5) - Password" \
+    PASS1=$(whiptail --title "LMDE First-Boot Setup (5/5) - Password" \
         --passwordbox "Enter new password for user '$NEW_USER':" 12 70 \
         3>&1 1>&2 2>&3) || continue
     if [ -z "$PASS1" ]; then
         whiptail --title "Error" --msgbox "The password cannot be empty." 10 50
         continue
     fi
-    PASS2=$(whiptail --title "LMPE First-Boot Setup (5/5) - Confirm Password" \
+    PASS2=$(whiptail --title "LMDE First-Boot Setup (5/5) - Confirm Password" \
         --passwordbox "Please re-enter the password to confirm:" 12 70 \
         3>&1 1>&2 2>&3) || continue
     if [ "$PASS1" != "$PASS2" ]; then
@@ -263,7 +263,7 @@ for grp in sudo adm dialout cdrom audio users video plugdev input netdev render 
 done
 
 AUTOLOGIN="no"
-if whiptail --title "LMPE First-Boot Setup (5/5) - Automatic Login" \
+if whiptail --title "LMDE First-Boot Setup (5/5) - Automatic Login" \
     --yesno "Would you like to automatically log into the Cinnamon Wayland desktop without entering your password on boot?\n\n(Select 'No' to require your password on the login screen)" 12 70; then
     AUTOLOGIN="yes"
     groupadd -f autologin 2>/dev/null || true
@@ -284,7 +284,7 @@ fi
 mkdir -p /etc/lightdm/lightdm.conf.d
 rm -f /etc/lightdm/lightdm.conf.d/90-slick-greeter.conf
 if [ "$AUTOLOGIN" = "yes" ]; then
-    cat << LCONF > /etc/lightdm/lightdm.conf.d/90-lmpe-wayland.conf
+    cat << LCONF > /etc/lightdm/lightdm.conf.d/90-lmde-wayland.conf
 [SeatDefaults]
 user-session=cinnamon-wayland
 
@@ -298,7 +298,7 @@ autologin-user=${NEW_USER}
 autologin-user-timeout=0
 LCONF
 else
-    cat << LCONF > /etc/lightdm/lightdm.conf.d/90-lmpe-wayland.conf
+    cat << LCONF > /etc/lightdm/lightdm.conf.d/90-lmde-wayland.conf
 [SeatDefaults]
 user-session=cinnamon-wayland
 
@@ -312,11 +312,11 @@ LCONF
 fi
 
 # Disable first-boot service and remove wizard script so it only runs once
-systemctl disable lmpe-firstboot.service 2>/dev/null || true
-rm -f /usr/local/sbin/lmpe-firstboot.sh
+systemctl disable lmde-firstboot.service 2>/dev/null || true
+rm -f /usr/local/sbin/lmde-firstboot.sh
 sync
 
-if whiptail --title "LMPE Setup Complete" \
+if whiptail --title "LMDE Setup Complete" \
     --yesno "Setup is complete!\n\nWould you like to restart now so all locale, hostname, and timezone settings take clean effect across the entire system?\n\n(Select 'No' to proceed directly to the Cinnamon Wayland desktop)" 14 70; then
     whiptail --title "Rebooting" --infobox "Rebooting system, please wait..." 8 45
     sleep 1
@@ -325,15 +325,15 @@ else
     exit 0
 fi
 EOF
-chmod 755 "${ROOTFS_DIR}/usr/local/sbin/lmpe-firstboot.sh"
+chmod 755 "${ROOTFS_DIR}/usr/local/sbin/lmde-firstboot.sh"
 
-cat << 'EOF' > "${ROOTFS_DIR}/etc/systemd/system/lmpe-firstboot.service"
+cat << 'EOF' > "${ROOTFS_DIR}/etc/systemd/system/lmde-firstboot.service"
 [Unit]
-Description=LMPE Interactive TTY First-Boot Configuration Wizard
-After=systemd-user-sessions.service NetworkManager.service lmpe-btrfs-resize.service
+Description=LMDE ARM64 Interactive TTY First-Boot Configuration Wizard
+After=systemd-user-sessions.service NetworkManager.service btrfs-root-resize.service
 Before=lightdm.service display-manager.service getty@tty1.service plymouth-quit-wait.service
 Conflicts=getty@tty1.service
-ConditionPathExists=/usr/local/sbin/lmpe-firstboot.sh
+ConditionPathExists=/usr/local/sbin/lmde-firstboot.sh
 
 [Service]
 Type=oneshot
@@ -341,7 +341,7 @@ TimeoutStartSec=0
 ExecStartPre=-/usr/bin/plymouth deactivate
 ExecStartPre=-/usr/bin/plymouth quit
 ExecStartPre=-/bin/chvt 1
-ExecStart=/usr/local/sbin/lmpe-firstboot.sh
+ExecStart=/usr/local/sbin/lmde-firstboot.sh
 StandardInput=tty
 StandardOutput=tty
 StandardError=tty
@@ -359,5 +359,5 @@ on_chroot <<- \EOF
 	apt-get purge -y cloud-init rpi-cloud-init-mods rpi-usb-gadget rpi-update libpam-chksshpwd userconf-pi 2>/dev/null || true
 	apt-get autoremove -y --purge 2>/dev/null || true
 	chown root:systemd-journal /var/log/journal 2>/dev/null || true
-	systemctl enable lmpe-firstboot.service
+	systemctl enable lmde-firstboot.service
 EOF

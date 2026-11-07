@@ -1,23 +1,10 @@
 #!/bin/bash -e
 
-# Remove any legacy Xorg/custom tuning files from earlier build stages
+# Remove any Xorg configuration files from base stages
 rm -rf "${ROOTFS_DIR}/etc/X11/xorg.conf.d/99-v3d.conf" \
        "${ROOTFS_DIR}/usr/share/X11/xorg.conf.d/99-v3d.conf" \
        "${ROOTFS_DIR}/etc/X11/xorg.conf.d/40-libinput-touchpad.conf" \
-       "${ROOTFS_DIR}/usr/share/glib-2.0/schemas/"*lmpe*.override \
-       "${ROOTFS_DIR}/etc/udev/rules.d/60-ondemand-governor.rules" \
-       "${ROOTFS_DIR}/etc/udev/rules.d/60-readahead.rules" \
-       "${ROOTFS_DIR}/etc/udev/rules.d/90-lmpe-runtime.rules" \
-       "${ROOTFS_DIR}/usr/sbin/lmpe-runtime-tune" \
-       "${ROOTFS_DIR}/etc/modules-load.d/bbr.conf" \
-       "${ROOTFS_DIR}/etc/modules-load.d/i2c-dev.conf" \
-       "${ROOTFS_DIR}/etc/sysctl.d/99-lmpe-pi5.conf" \
-       "${ROOTFS_DIR}/etc/firefox/policies/policies.json" \
-       "${ROOTFS_DIR}/etc/chromium.d/99-lmpe-pi5" \
-       "${ROOTFS_DIR}/etc/NetworkManager/conf.d/99-lmpe-wifi-powersave-off.conf" \
-       "${ROOTFS_DIR}/etc/systemd/resolved.conf.d/99-lmpe-dns.conf" \
-       "${ROOTFS_DIR}/etc/lightdm/lightdm.conf.d/90-slick-greeter.conf" \
-       "${ROOTFS_DIR}/usr/share/argon-debs"
+       "${ROOTFS_DIR}/etc/lightdm/lightdm.conf.d/90-slick-greeter.conf"
 
 # 1. Pure Wayland LightDM Session Wrapper & Greeter Configuration (LMDE Mint-Y styled)
 install -d -m 755 "${ROOTFS_DIR}/usr/sbin" \
@@ -55,7 +42,7 @@ exec "$@"
 EOF
 chmod 755 "${ROOTFS_DIR}/usr/sbin/lightdm-wayland-session"
 
-cat << 'EOF' > "${ROOTFS_DIR}/etc/lightdm/lightdm.conf.d/90-lmpe-wayland.conf"
+cat << 'EOF' > "${ROOTFS_DIR}/etc/lightdm/lightdm.conf.d/90-lmde-wayland.conf"
 [SeatDefaults]
 user-session=cinnamon-wayland
 
@@ -148,7 +135,7 @@ on_chroot <<- \EOF
 		/usr/share/xsessions/lightdm-xsession.desktop \
 		/usr/share/xsessions/openbox.desktop \
 		/usr/share/wayland-sessions/labwc.desktop; do
-		dpkg-divert --package lmpe --add --rename --divert "${f}.disabled" "$f" 2>/dev/null || true
+		dpkg-divert --package lmde-arm64 --add --rename --divert "${f}.disabled" "$f" 2>/dev/null || true
 		rm -f "${f}.disabled"
 	done
 
@@ -245,7 +232,7 @@ if target in c:
 
 	# Systemd first-boot preset protection (keeps SSH & ext4-only services disabled on first boot)
 	install -d -m 755 /etc/systemd/system-preset
-	cat << 'EOF_PRESET' > /etc/systemd/system-preset/00-lmpe.preset
+	cat << 'EOF_PRESET' > /etc/systemd/system-preset/00-lmde.preset
 disable ssh.service
 disable ssh.socket
 disable rpi-resize.service
