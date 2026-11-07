@@ -1,12 +1,13 @@
 # ==============================================================================
-# Stufe 0: Performance-Hotspots, Raspberry Pi (+rpt) & Debian Trixie Systempakete
-# Werden mit -march=armv8.2-a+crypto+fp16+dotprod -mtune=cortex-a76 -ftree-vectorize -O3 gebaut
+# Stufe 0: Performance-Hotspots, Raspberry Pi (+rpt) & Debian Trixie Systembasis
+# Gebaut mit -mcpu=cortex-a76+crypto -O3 + Graphite + LTO + 16K Page-Alignment
 # ==============================================================================
 
-# --- 1. Kompression, Prüfsummen, Archive & Dateisystem ---
+# --- 1. C-Standardbibliothek, Kompression, Prüfsummen, Archive & Dateisysteme ---
+glibc
 zlib
 lz4
-zstd
+libzstd
 xz-utils
 bzip2
 7zip
@@ -19,55 +20,153 @@ gzip
 tar
 unzip
 zip
+libzip
 libarchive
+file
 btrfs-progs
+e2fsprogs
+dosfstools
+exfatprogs
+ntfs-3g
+fuse3
+parted
 
-# --- 2. Kryptographie, Mathe, TLS & Netzwerk-Protokolle (+crypto Hardware-AES/SHA) ---
+# --- 2. Kryptographie, Mathe, TLS, SSH, GPG & Netzwerk-Protokolle (+crypto Hardware-AES/SHA) ---
 gmp
 nettle
 libxcrypt
 libgcrypt20
+libgpg-error
+libassuan
 libsodium
 mbedtls
+libtasn1-6
+p11-kit
 gnutls28
 openssl
+gpgme1.0
+gnupg2
+c-ares
 nghttp2
 nghttp3
 ngtcp2
 libssh
 libssh2
+openssh
 curl
+libsoup3
+rsync
 
-# --- 3. Basis-Bibliotheken, Allocator, SIMD, Regex, XML/JSON & Datenbank ---
+# --- 3. Basis-Bibliotheken, Shell/Core-Utils, Allocator, SIMD, Regex, XML/JSON, IPC & System-Daemons ---
 jemalloc
 highway
+double-conversion
+md4c
 pcre2
 re2
 expat
 icu
+uchardet
 libxml2
 libxslt
 json-c
 sqlite3
 glib2.0
 json-glib
+acl
+attr
+popt
+libcap2
+libseccomp
+pam
+coreutils
+findutils
+grep
+sed
+gawk
+dash
+bash
+util-linux
+liburing
+libusb-1.0
+hidapi
+libgudev
+systemd
+dbus
+dbus-broker
+policykit-1
+kmod
+wpa
+bluez
+avahi
+netplan.io
+network-manager
+libblockdev
+udisks2
+upower
+libmtp
+cups
+cups-filters
+sane-airscan
+plymouth
+xdg-desktop-portal
+dpkg
+apt
+appstream
+packagekit
+ostree
+flatpak
+raspi-utils
 
-# --- 4. Display-Server, Wayland/X11 (+rpt), Input (+rpt) & 3D/OpenGL-Stack ---
+# --- 4. Pure-Wayland Display-Stack (+rpt), XWayland/XCB, Input (+rpt), Vulkan & VideoCore VII Mesa 3D ---
+libevdev
+mtdev
+tslib
+libwacom
 wayland
 libxkbcommon
 libinput
 libdrm
+libdisplay-info
+libliftoff
+libxcb
+xcb-util
+xcb-util-wm
+xcb-util-image
+xcb-util-keysyms
+xcb-util-renderutil
+xcb-util-cursor
+libx11
+libxext
+libxrender
+libxfixes
+libxdamage
+libxcomposite
+libxrandr
+libxi
+libxtst
+libxcursor
+libglvnd
+libva
+vulkan-loader
+vulkan-volk
+glslang
+spirv-tools
+shaderc
 mesa
 libepoxy
 pixman
 graphene
 cogl
 clutter-1.0
-xorg-server
+wlroots
+labwc
+lightdm
+pi-greeter
 xwayland
 libsdl2
 
-# --- 5. Schrift-, Farb-, Bild-, SVG- & PDF-Rendering-Engines ---
+# --- 5. Schrift-, Farb-, Bild-, SVG-, Dokument- & PDF-Rendering-Engines ---
 libpng1.6
 libjpeg-turbo
 libwebp
@@ -82,16 +181,21 @@ freetype
 fribidi
 harfbuzz
 fontconfig
+hunspell
+aspell
+enchant-2
 cairo
 gdk-pixbuf
 pango1.0
 librsvg
 qpdf
+djvulibre
+libspectre
 poppler
 babl
 gegl
 
-# --- 6. Moderne Bild- & Video-Codecs (SIMD / NEON / DotProd) ---
+# --- 6. Moderne Bild- & Video-Codecs (SIMD / NEON / DotProd) & Pi 5 Kamera/ISP (+rpt) ---
 dav1d
 aom
 svt-av1
@@ -111,6 +215,11 @@ libtheora
 zimg
 libass
 libplacebo
+v4l-utils
+libpisp
+kms++
+libcamera
+rpicam-apps
 
 # --- 7. Audio-Codecs, DSP, FFT, Resampling & PipeWire-Stack (+rpt) ---
 libogg
@@ -128,12 +237,19 @@ libsamplerate
 libsoxr
 speexdsp
 webrtc-audio-processing
+soundtouch
+rubberband
+openal-soft
+taglib
+chromaprint
+libebur128
 alsa-lib
+alsa-utils
 pulseaudio
 pipewire
 wireplumber
 
-# --- 8. GStreamer-Stack (+rpt), Multimedia-Player, Toolkits & JS-Engine ---
+# --- 8. GStreamer-Stack (+rpt), Multimedia-Player, GTK-Toolkits & Python 3.13 (mit PGO) ---
 gstreamer1.0
 gst-plugins-base1.0
 gst-plugins-good1.0
@@ -142,26 +258,20 @@ gst-plugins-ugly1.0
 gst-libav1.0
 ffmpeg
 mpv
-vlc
 gtk+3.0
 gtk4
+libadwaita-1
+libadapta-1
+gtksourceview4
+gtksourceview5
 vte2.91
+xdg-desktop-portal-gtk
 python3.13
-
-# --- 9. Häufig genutzte Desktop-Programme & System-Tools ---
 ffmpegthumbnailer
-btop
-htop
-fastfetch
-imagemagick
-ghostscript
-gimp
-inkscape
-audacity
+rpi-imager
 
 # ==============================================================================
-# Stufe 1: LMDE 7 ("gigi") / Cinnamon & XApps Desktop-Stack
-# Werden stabil mit -march=armv8.2-a+crypto+fp16+dotprod -mtune=cortex-a76 -ftree-vectorize -O2 gebaut
+# Stufe 1: LMDE 7 ("gigi") / Cinnamon 6.6 Wayland, XApps & Linux Mint Desktop-Stack
 # ==============================================================================
 xapp
 cjs
@@ -180,14 +290,27 @@ nemo-python
 nemo-fileroller
 nemo-preview
 nemo-share
-nemo-emblems
 nemo-image-converter
-nemo-audio-tab
-nemo-compare
-nemo-media-columns
+nemo-seahorse
+nemo-filename-repairer
 xed
 xviewer
 xviewer-plugins
 pix
-slick-greeter
-mint-info-gigi
+timeshift
+warpinator
+fingwit
+xenity
+file-roller
+gnome-terminal
+gnome-screenshot
+gnome-calendar
+gnome-online-accounts-gtk
+transmission
+celluloid
+baobab
+pavucontrol
+seahorse
+gparted
+synaptic
+mint-info

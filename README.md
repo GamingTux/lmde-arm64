@@ -6,11 +6,12 @@
 [![GitHub Release](https://img.shields.io/github/v/release/GamingTux/lmde-arm64?include_prereleases&style=flat-square&color=87cf3e)](https://github.com/GamingTux/lmde-arm64/releases)
 [![Architecture](https://img.shields.io/badge/Architecture-ARM64%20(Cortex--A76)-blue?style=flat-square)](https://github.com/GamingTux/lmde-arm64)
 [![Base](https://img.shields.io/badge/Base-Debian%2013%20Trixie%20%2F%20LMDE%207-green?style=flat-square)](https://www.linuxmint.com/)
+[![Display](https://img.shields.io/badge/Display-Pure%20Wayland-5fb336?style=flat-square)](https://wayland.freedesktop.org/)
 [![Filesystem](https://img.shields.io/badge/RootFS-Btrfs%20%2B%20zstd%3A2-orange?style=flat-square)](https://btrfs.readthedocs.io/)
 [![License](https://img.shields.io/github/license/GamingTux/lmde-arm64?style=flat-square)](LICENSE)
 
-> **An independent, community-driven Linux Mint Cinnamon desktop experience engineered exclusively for Raspberry Pi 5, Compute Module 5 (CM5), and Raspberry Pi 500.**  
-> Built upon **LMDE 7 ("gigi")** and **Debian 13 Trixie**, LMPE delivers a responsive, feature-rich Cinnamon desktop natively compiled and aggressively optimized for the **Broadcom BCM2712 (ARM Cortex-A76)** 64-bit microarchitecture.  
+> **An authentic, pure Linux Mint Debian Edition (LMDE 7 "Gigi") Cinnamon desktop experience on Wayland — engineered exclusively for Raspberry Pi 5, Compute Module 5 (CM5), and Raspberry Pi 500.**  
+> Built upon **LMDE 7 ("gigi")** and **Debian 13 Trixie**, LMPE delivers an unmodified, upstream-faithful Linux Mint desktop running **100% pure Wayland** and natively compiled for the **Broadcom BCM2712 (ARM Cortex-A76)** 64-bit microarchitecture.  
 >  
 > *Disclaimer: LMPE is an independent community project by GamingTux and is NOT officially affiliated with, sponsored by, or endorsed by the Linux Mint team or Clement Lefebvre.*
 
@@ -19,86 +20,48 @@
 
 ---
 
-<p align="center">
-  <img src="assets/lmpe-hero.png" alt="LMPE - Linux Mint Pi Edition Boot Splash (Tatooine Edition)" width="850">
-</p>
-
----
-
 ## 🌟 Why LMPE?
 
-Linux Mint is globally celebrated for its elegance, stability, and intuitive Cinnamon desktop environment. However, **the Linux Mint team does not maintain an official ARM64 port for single-board computers**.
+Linux Mint is celebrated for its clean design, stability, and intuitive Cinnamon desktop environment. However, **the Linux Mint team does not publish an official ARM64 edition for single-board computers**.
 
-**LMPE (Unofficial Linux Mint Pi Edition)** bridges this gap as an independent community distribution, transforming the Raspberry Pi 5 into a first-class, workstation-grade Linux Mint desktop:
+**LMPE (Unofficial Linux Mint Pi Edition)** bridges this gap by combining an authentic, untinkered **LMDE 7 ("Gigi")** desktop experience with the Raspberry Pi 5's modern graphics and storage stack:
 
-1. **Ready-to-Flash Bootable OS Images:** Out-of-the-box system images featuring a high-performance **Btrfs** root filesystem with transparent Zstandard (`zstd:2`) compression.
-2. **Dedicated GPG-Signed APT Repository:** Over **160+ system and desktop packages** recompiled specifically with Cortex-A76 SIMD vectorization and Link-Time Optimization (`-flto=auto`).
-3. **Native Raspberry Pi 5 Hardware Acceleration:** Official 64-bit Raspberry Pi kernel (`linux-image-rpi-2712`), VideoCore VII Mesa GPU drivers (OpenGL 3.1 & Vulkan 1.3), and seamless 4K60 dual-HDMI output.
-4. **Fine-Tuned Kernel & Memory Architecture:** Pure compressed ZRAM swap, high-throughput I/O schedulers, accelerated Btrfs background TRIM, and expanded inotify watchers for developers.
-5. **Universal Hardware Design:** 100% vendor-agnostic architecture running seamlessly on standard Raspberry Pi 5 boards, industrial CM5 carrier boards, and portable laptops (such as the Argon ONE UP) via an interactive first-boot hardware configuration assistant.
-
----
-
-## 🌌 Galactic Codenames: The Star Wars Release Cycle
-
-Just as Debian names its releases after *Toy Story* characters and Ubuntu after animals, **LMPE names its major releases after iconic planets from the Star Wars galaxy**.
-
-### Current Release: **LMPE "Tatooine"** ☀️☀️
-> *"The journey begins where two suns rise..."*
-
-* **The Upstream Heritage:** In tribute to our upstream Debian 13 (**T**rixie) foundation, our primary release cycle begins with the letter **T**.
-* **Where the Saga Begins:** In the Star Wars universe, Tatooine is the legendary desert world where epic journeys begin. For LMPE, *Tatooine* marks our first official universal release: resilient, dependable, and built to venture across any Raspberry Pi 5 and Compute Module 5 platform.
-* **The Twin Suns:** Tatooine's dual suns are reflected in our official branding—one glowing in Linux Mint emerald green, the other in Raspberry/Debian crimson.
-* **Dual Artwork Standard:** Every LMPE release features a coordinated artwork duo: an atmospheric Plymouth vector boot splash with boot spinner and a matching, distraction-free desktop wallpaper.
-* **Modular Theme Packaging (`lmpe-theme`):** All wallpapers, Plymouth boot splash themes, and Cinnamon background properties are packaged into the official `lmpe-theme` Debian package. Users receive new bootscreens and artwork via standard `apt upgrade` or `mintupdate` without flashing a new OS image.
-* **User Customization Protection:** Package updates will **never** overwrite a personalized wallpaper selected by the user (guaranteed by dconf user-level precedence over GSettings system schema defaults).
-* **Artwork Gallery & Cinnamon GUI Integration:** All current and past release wallpapers are neatly organized in `/usr/share/backgrounds/lmpe/` and available directly inside Cinnamon's *System Settings → Backgrounds* under the dedicated **LMPE** category.
+1. **Authentic LMDE 7 Experience:** Ships the official Linux Mint `mint-logo` Plymouth boot splash, official Mint wallpapers (`mint-artwork`), `Mint-Y` themes and icon sets, `debian-system-adjustments`, and the complete Mint XApps & utility suite — without custom theme forks or non-standard kernel/sysctl overrides.
+2. **100% Xorg-Free Pure Wayland Stack:** Built directly around Raspberry Pi's KMS/DRM VideoCore VII driver architecture. Both the LightDM login screen (`pi-greeter-labwc`) and the desktop session (`cinnamon-wayland`) run natively on Wayland, with `xwayland` transparently supporting legacy X11 and administrative tools.
+3. **Dedicated GPG-Signed Cortex-A76 APT Repository:** Over **290+ system, Wayland, multimedia, and Linux Mint source packages** natively compiled for the Raspberry Pi 5's **ARMv8.2-A Cortex-A76** CPU (`-mcpu=cortex-a76+crypto`, 16 KB ELF page alignment, VideoCore VII-pruned Mesa, and PGO-optimized Python 3.13).
+4. **Snapshot-Ready Btrfs + ZRAM Foundation:** Ready-to-flash OS images featuring a **Btrfs** root filesystem with transparent `zstd:2` compression (ideal for instant **Timeshift** snapshots) and Raspberry Pi OS native ZRAM swap.
 
 ---
 
 ## 🚀 Key Features
 
-### 🍃 Complete Linux Mint Cinnamon Desktop & XApps Suite
-Includes the complete, uncompromised Linux Mint desktop experience:
-* **Cinnamon 6.x Desktop:** Modern composited desktop with Muffin window manager, Slick Greeter display manager, and official Mint-Y themes & icon sets.
-* **Full Mint Utilities:** Timeshift (system restore snapshots), MintWelcome, MintStick (USB formatter and ISO writer), MintReport, MintBackup, MintLocale, Bulky (batch file renamer), Folder Color Switcher, Sticky Notes, and Thingy (document organizer).
-* **Multimedia & Creativity:** Celluloid (hardware-accelerated media player), Hypnotix (live IPTV streaming), Drawing, and Pix image viewer.
-* **System Diagnostics:** GParted partition manager, Baobab disk usage analyzer, Pavucontrol audio manager, Seahorse keyring manager, Btop, and Fastfetch.
+### 🍃 Authentic LMDE 7 Cinnamon Desktop & XApps Suite
+Includes the genuine Linux Mint Debian Edition 7 desktop stack out of the box:
+* **Cinnamon 6.6 Desktop on Wayland:** Modern composited Cinnamon Wayland desktop (`muffin`), official `mint-logo` Plymouth boot screen, and official Linux Mint backgrounds, `Mint-Y` themes, and icons.
+* **Complete Mint Utilities:** Timeshift (instant Btrfs system snapshots), MintUpdate, MintInstall (Software Manager with Flatpak/Flathub), MintSources, MintWelcome, MintStick, MintReport, MintBackup, MintLocale, Warpinator, Gufw, Bulky, Folder Color Switcher, Sticky Notes, and Thingy.
+* **Multimedia & Everyday Apps:** Firefox (with `rpi-firefox-mods` & Widevine DRM), Celluloid, Hypnotix, Drawing, Xed, Xviewer, Xreader, Pix, GParted, Baobab, Pavucontrol, and Seahorse.
 
-### ⚡ Broadcom BCM2712 (Cortex-A76) Microarchitecture Tuning
-Packages are compiled natively with advanced ARMv8.2-A compiler flags:
+### 🪟 Pure Wayland Display Architecture
+Raspberry Pi's VideoCore VII (`v3d` / `vc4`) KMS/DRM graphics stack is designed first and foremost for Wayland:
+* **Zero Xorg Server:** No `xserver-xorg` packages or legacy X11 drivers are installed.
+* **Wayland Login Greeter:** LightDM launches a Mint-Y styled Wayland greeter (`pi-greeter-labwc`) before handing off cleanly to `cinnamon-wayland`.
+* **Seamless XWayland Compatibility:** On-demand `xwayland` support with automatic local root Xauthority access (`xhost +SI:localuser:root`) ensures administrative applications like **Timeshift**, **Synaptic**, and **GParted** work out of the box.
+* **Rolling Upstream Improvements:** As Linux Mint refines Wayland support in Cinnamon and Muffin, updates arrive directly through `mintupdate` / `apt full-upgrade`.
+
+### ⚡ Broadcom BCM2712 (Cortex-A76) Native Repository
+Packages in the LMPE repository are compiled natively for the BCM2712's Cortex-A76 microarchitecture, cache geometry, and `rpi-2712` 16 KB hardware page size:
 ```text
--march=armv8.2-a+crypto+fp16+dotprod -mtune=cortex-a76 -ftree-vectorize -flto=auto
+-mcpu=cortex-a76+crypto -mtune=cortex-a76 -mno-outline-atomics -mearly-ra=all -O3 -flto=auto
+-Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384
 ```
-Multimedia engines and mathematical routines (`ffmpeg`, `dav1d`, `libvpx`, `pixman`, `cairo`, `zstd`) utilize `-O3` vectorization, delivering smooth 1080p60 video playback with low CPU overhead.
+* **Pruned VideoCore VII Mesa:** `mesa` is built specifically for Raspberry Pi 5 (`v3d`, `vc4`, `zink`, `llvmpipe` & `broadcom` Vulkan) without x86/desktop GPU driver bloat.
+* **Python 3.13 with PGO:** Built with Profile-Guided Optimization (`+15–25%` faster execution across Cinnamon settings, MintUpdate, MintInstall, and Nemo extensions).
+* **SIMD Multimedia:** `ffmpeg`, `dav1d`, `libvpx`, `pixman`, `cairo`, and `pipewire` leverage NEON/DotProd/FP16 `-O3` vectorization for smooth 1080p60 playback.
 
-### 🗄️ Resilient Btrfs Root Filesystem
-* Transparent `zstd:2` compression saves up to 40% disk space while doubling random read throughput on NVMe SSDs and MicroSD cards.
-* Flash-friendly mount parameters: `defaults,compress=zstd:2,noatime,nodiratime,ssd,discard=async`.
-* RAM-backed `/tmp` (`tmpfs`) to prevent unnecessary flash storage writes.
-* Automatic first-boot partition expansion (`lmpe-btrfs-resize`) accommodating any drive size.
-
-### 🧠 Pure ZRAM Compressed Memory Architecture
-* 4 GB compressed ZRAM swap (`lz4`) with high swap priority (`100`), eliminating slow flash disk swap files and reducing physical memory pressure.
-* Aggressive kernel swappiness (`vm.swappiness = 180`) that moves stale memory pages into ZRAM to keep physical RAM available for Btrfs caches and applications.
-* Disabled swap readahead (`vm.page-cluster = 0`) to prevent decompression latency spikes.
-
-### 🏎️ High-Throughput Storage Schedulers & Ultra-Fast Boot
-* **Direct Hardware Multi-Queue:** NVMe SSDs operate with scheduler `none` and 512KB read-ahead for zero CPU submission overhead.
-* **Flash Wear-Leveling:** MicroSD cards and eMMC storage utilize `mq-deadline` with 256KB read-ahead.
-* **Rotational Drive Balancing:** External USB mechanical hard drives automatically receive `bfq` (Budget Fair Queueing).
-* **Boot-Fsck Bypass:** FAT32 `/boot/firmware` fsck pass is set to `0` in `/etc/fstab`, shaving 250–300 ms off every boot sequence.
-* **Blocking Services Masked:** Eliminates stalls by masking `NetworkManager-wait-online.service` and `systemd-networkd-wait-online.service`.
-
-### 🛠️ Developer-Ready System Limits
-* Pre-configured `fs.inotify.max_user_watches = 524288` eliminates "System limit for number of file watchers reached" errors when running VS Code, Codium, file synchronizers, or large codebases.
-* Pre-tuned `vm.vfs_cache_pressure = 50`, `vm.dirty_background_ratio = 5`, and `vm.dirty_ratio = 10` ensure ultra-fluid desktop responsiveness even during heavy background writes.
-
-### 🌐 High-Performance Networking & APT Engine
-* Google TCP BBR congestion control and Fair Queueing (`fq`).
-* 4-core Receive Packet Steering (RPS/RFS) spreading network interrupts evenly across all Cortex-A76 cores.
-* Consolidated APT configuration (`/etc/apt/apt.conf.d/99-lmpe.conf`) with connection pipelining, host queues, and automatic retry handling.
-* Local DNS caching with opportunistic DNS-over-TLS via `systemd-resolved`.
+### 🗄️ Btrfs Root Filesystem & Native ZRAM
+* **Transparent Compression:** `defaults,compress=zstd:2,noatime,ssd,discard=async` saves flash space, reduces SD/NVMe wear, and enables instantaneous copy-on-write **Timeshift** snapshots.
+* **Automatic First-Boot Resize:** `lmpe-btrfs-resize.service` automatically expands the Btrfs partition and filesystem to fill your MicroSD card or NVMe SSD on initial boot.
+* **Pure ZRAM Swap:** Uses Raspberry Pi OS's native ZRAM mechanism (`rpi-swap` configured to `Mechanism=zram`), avoiding swap files on flash storage.
 
 ---
 
@@ -106,10 +69,9 @@ Multimedia engines and mathematical routines (`ffmpeg`, `dav1d`, `libvpx`, `pixm
 
 | Device | Status | Architecture | Specifications |
 | :--- | :---: | :---: | :--- |
-| **Raspberry Pi 5 (4GB / 8GB / 16GB)** | ✅ Full Support | ARMv8.2-A Cortex-A76 | VideoCore VII (OpenGL 3.1, Vulkan 1.3), PCIe 2.0 / 3.0 NVMe, dual 4K60 HDMI. |
-| **Raspberry Pi Compute Module 5 (CM5)** | ✅ Full Support | ARMv8.2-A Cortex-A76 | DWC2 USB 2.0 host routing for internal keyboards, trackpads, and carrier IO boards. |
-| **Raspberry Pi 500** | ✅ Full Support | ARMv8.2-A Cortex-A76 | Integrated keyboard unit with BCM2712 architecture. |
-| **Argon ONE UP Laptop & Modular Enclosures** | ✅ Full Support | ARMv8.2-A Cortex-A76 | Interactive First-Boot setup installs tailored battery monitors, backlight controls, and fan daemon. |
+| **Raspberry Pi 5 (4GB / 8GB / 16GB)** | ✅ Full Support | ARMv8.2-A Cortex-A76 | VideoCore VII (OpenGL 3.1, Vulkan 1.3), PCIe NVMe, dual 4K60 HDMI. |
+| **Raspberry Pi Compute Module 5 (CM5)** | ✅ Full Support | ARMv8.2-A Cortex-A76 | Stock Raspberry Pi OS Trixie firmware & device-tree configuration (`dwc2` host routing). |
+| **Raspberry Pi 500** | ✅ Full Support | ARMv8.2-A Cortex-A76 | Integrated keyboard computer based on BCM2712. |
 | **Raspberry Pi 4 / 400 / 3 / Zero 2W** | ❌ Incompatible | ARMv8-A Cortex-A72/A53 | **Unsupported.** Lacks ARMv8.2-A, Dot Product, and Crypto instructions (`Illegal instruction` crash). |
 
 ---
@@ -121,28 +83,28 @@ Multimedia engines and mathematical routines (`ffmpeg`, `dav1d`, `libvpx`, `pixm
 1. Download the latest bootable release image from **[GitHub Releases](https://github.com/GamingTux/lmde-arm64/releases/latest)**:
    * Image: `image_YYYY-MM-DD-lmpe-arm64-pi5-cinnamon-btrfs.img.xz`
 2. Flash the compressed `.img.xz` file directly onto an NVMe SSD or MicroSD card:
-   * **[Raspberry Pi Imager](https://www.raspberrypi.com/software/)** (*Select "Use Custom"*)
+   * **[Raspberry Pi Imager](https://www.raspberrypi.com/software/)** (*Select "Use Custom"* — do not apply OS customisation, as LMPE includes its own first-boot wizard)
    * **[Balena Etcher](https://etcher.balena.io/)**
    * Command Line (`dd`):
      ```bash
      xz -dc image_*-lmpe-arm64-pi5-cinnamon-btrfs.img.xz | sudo dd of=/dev/sdX bs=4M status=progress conv=fsync
      ```
-3. Insert the drive into your Raspberry Pi 5 / CM5 and power on.
+3. Insert the drive into your Raspberry Pi 5 / CM5 / Pi 500 and power on.
 4. On first boot:
-   * The interactive wizard lets you set your language, keyboard layout, hostname, and optional hardware profiles.
-   * The Btrfs root filesystem automatically resizes to fill your entire storage medium.
+   * The Btrfs root filesystem automatically expands to fill your storage drive.
+   * A clean 5-step setup wizard configures your **keyboard layout**, **language & timezone**, **hostname**, **Wi-Fi**, and **user account / automatic login**, then launches the Cinnamon Wayland desktop.
 
 ---
 
 ### Option 2: Convert Existing Raspberry Pi OS (Trixie Lite)
 
-If you have an existing minimal installation of **Raspberry Pi OS Lite (64-bit, Debian 13 Trixie)**, convert it to LMPE with a single automated script:
+If you have an existing minimal installation of **Raspberry Pi OS Lite (64-bit, Debian 13 Trixie)** on a Raspberry Pi 5, CM5, or Pi 500, convert it to LMPE (LMDE 7 Wayland) with a single script:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/GamingTux/lmde-arm64/main/setup-pi-lmde.sh | sudo bash
 ```
 
-After installation completes, reboot into the Cinnamon desktop:
+After installation completes, reboot into Cinnamon Wayland:
 ```bash
 sudo reboot
 ```
@@ -151,14 +113,12 @@ sudo reboot
 
 ## ⚙️ Architecture Optimization Tiers
 
-Standard multi-arch Debian and Ubuntu ARM64 binaries target an older baseline (`armv8-a`) to maintain compatibility with legacy Raspberry Pi 3 chips.
+Standard Debian ARM64 binaries target the baseline `armv8-a` instruction set for compatibility with older boards. LMPE compiles its repository packages specifically for the **ARMv8.2-A Cortex-A76** core in the Raspberry Pi 5:
 
-LMPE compiles packages specifically for the modern **ARMv8.2-A Cortex-A76** core inside the Raspberry Pi 5:
-
-| Optimization Tier | Target Packages | Compiler Flags |
+| Optimization Profile | Target Packages | Compiler & Linker Highlights |
 | :--- | :--- | :--- |
-| **Tier 0 (`-O3`)**<br>Hotspots & Multimedia | Crypto (`openssl`, `gnutls28`, `nettle`, `libgcrypt20`), Compression (`zstd`, `lz4`, `7zip`, `libarchive`), Graphics & Math (`pixman`, `cairo`, `pango`, `mesa`, `libdrm`, `highway`), Media & DSP (`ffmpeg`, `pipewire`, `opus`, `flac`, `dav1d`, `x264`, `x265`, `mpv`), Python 3.13 | `-march=armv8.2-a+crypto+fp16+dotprod -mtune=cortex-a76 -ftree-vectorize -O3` |
-| **Tier 1 (`-O2`)**<br>Desktop & UI Stack | Cinnamon Desktop, Muffin Window Manager, Nemo File Manager & Plugins, CJS, XApps (`xed`, `xviewer`, `xreader`, `pix`), Slick Greeter | `-march=armv8.2-a+crypto+fp16+dotprod -mtune=cortex-a76 -ftree-vectorize -flto=auto -ffat-lto-objects -O2` |
+| **Core, Multimedia & Graphics (`-O3` + Graphite + LTO)** | `glibc`, Compression (`zlib`, `lz4`, `libzstd`, `xz-utils`), Crypto (`openssl`, `gnutls28`, `nettle`), System & IPC (`systemd`, `dbus`, `glib2.0`, `flatpak`, `packagekit`), Pure Wayland & 3D (`wayland`, `wlroots`, `labwc`, `lightdm`, `pi-greeter`, `xwayland`, pruned `mesa` `v3d`/`vc4`), Codecs & Audio (`ffmpeg`, `dav1d`, `libvpx`, `pipewire`, `gstreamer1.0`), `python3.13` (with PGO) | `-mcpu=cortex-a76+crypto -mtune=cortex-a76 -mno-outline-atomics -mearly-ra=all --param l1-cache-size=64 --param l2-cache-size=512 -O3 -fgraphite-identity -floop-nest-optimize -flto=auto` + `16 KB` ELF page alignment |
+| **LMDE 7 / Cinnamon Wayland Stack (`-O3`)** | Cinnamon 6.6, Muffin Wayland Compositor, Nemo & Extensions, CJS, XApps (`xed`, `xviewer`, `xreader`, `pix`), `libadwaita-1`, `libadapta-1`, Timeshift, Warpinator | Full Cortex-A76 `-O3` vectorization with automatic 3-stage self-healing fallback (`-O3+LTO` → `-O3` → `-O2`) and `xz -9e` package compression |
 
 Every custom package carries the `+pi5` local version suffix and is cryptographically signed with the LMPE repository GPG key.
 
@@ -166,7 +126,7 @@ Every custom package carries the `+pi5` local version suffix and is cryptographi
 
 ## 🎛️ APT Repository & Package Priorities
 
-LMPE configures APT pinning to ensure continuous security updates while preserving custom Cortex-A76 performance packages:
+LMPE uses clean APT pinning to combine Cortex-A76 packages, official Raspberry Pi kernel/firmware updates, upstream Linux Mint `all` packages, and Debian 13 Trixie:
 
 ```text
 /etc/apt/preferences.d/lmde-pi5.pref:
@@ -188,19 +148,24 @@ Pin: origin "packages.linuxmint.com"
 Pin-Priority: 700
 ```
 
-* **`gamingtux.github.io` (Priority 1001):** Highest priority. Delivers Cortex-A76 recompiled packages (`+pi5`).
-* **`archive.raspberrypi.com` (Priority 1000):** Protects the official Raspberry Pi kernel (`linux-image-rpi-2712`), firmware, bootloader, EEPROM, and VideoCore VII GPU drivers.
-* **`packages.linuxmint.com` (`*:amd64` Priority -1):** Blocks all foreign x86_64 binary packages from Linux Mint.
-* **`packages.linuxmint.com` (Priority 700):** Delivers architecture-independent (`Architecture: all`) Linux Mint components (`mintupdate`, `mintinstall`, `mintsources`, Mint-Y themes, icons) and updated Mint libraries.
-* **`deb.debian.org` (Priority 500 / default):** Supplies the base Debian 13 (Trixie) pool of over 60,000+ native ARM64 packages indexed via AppStream in the Software Manager.
+* **`gamingtux.github.io` (Priority 1001):** Delivers Cortex-A76 compiled LMDE 7 desktop and multimedia packages (`+pi5`).
+* **`archive.raspberrypi.com` (Priority 1000):** Supplies the official Raspberry Pi kernel (`linux-image-rpi-2712`), firmware, bootloader, EEPROM, and VideoCore VII stack.
+* **`packages.linuxmint.com` (`*:amd64` Priority -1):** Blocks foreign `amd64` binary packages from Linux Mint.
+* **`packages.linuxmint.com` (Priority 700):** Delivers architecture-independent (`Architecture: all`) Linux Mint packages (`debian-system-adjustments`, `mintupdate`, `mintinstall`, `mintsources`, `mint-artwork`, `mint-themes`, `mint-y-icons`).
+* **`deb.debian.org` (Priority 500 / default):** Supplies the full Debian 13 (Trixie) ARM64 software archive.
 
 ---
 
 ## ❓ Frequently Asked Questions (FAQ)
 
 <details>
+<summary><b>Why does LMPE run pure Wayland without Xorg?</b></summary>
+Raspberry Pi 5's VideoCore VII graphics architecture (<code>v3d</code> / <code>vc4</code> KMS/DRM) is engineered primarily for Wayland compositors rather than legacy Xorg drivers. Running pure Wayland eliminates screen tearing and legacy X11 overhead while <code>xwayland</code> keeps older X11 and root administrative tools working transparently. As Linux Mint continues improving Cinnamon's Wayland session across point releases, LMPE automatically benefits through normal system updates.
+</details>
+
+<details>
 <summary><b>Can I install software using Flatpak and Flathub?</b></summary>
-Yes! Flatpak and Flathub are enabled out of the box in LMPE. You can install apps graphically using the Linux Mint Software Manager (<code>mintinstall</code>) or via the terminal:
+Yes! Flatpak and Flathub are enabled out of the box, just like in upstream LMDE 7. You can install Flatpaks graphically in the Linux Mint Software Manager (<code>mintinstall</code>) or via terminal:
 
 ```bash
 flatpak install flathub <app_name>
@@ -209,28 +174,22 @@ flatpak install flathub <app_name>
 
 <details>
 <summary><b>How do I enable PCIe Gen 3 for my NVMe SSD?</b></summary>
-The Raspberry Pi 5 PCIe FFC interface defaults to PCIe Gen 2 (5 Gbps) to ensure maximum electrical compatibility across all third-party HATs and flex cables.
-
-If your NVMe HAT and SSD support PCIe Gen 3 (8 Gbps), enable it by adding these options to <code>/boot/firmware/config.txt</code>:
+LMPE ships with the unmodified stock Raspberry Pi OS <code>/boot/firmware/config.txt</code>, which defaults to PCIe Gen 2 for maximum HAT compatibility. If your NVMe adapter and SSD support PCIe Gen 3, add the following lines to <code>/boot/firmware/config.txt</code>:
 
 ```ini
 dtparam=nvme
 dtparam=pciex1_gen=3
 ```
-
-*(Note: On the Argon ONE UP laptop, the First-Boot wizard configures PCIe Gen 3 automatically as part of the hardware profile).*
 </details>
 
 <details>
 <summary><b>How is video playback (YouTube / streaming) accelerated?</b></summary>
-The Broadcom BCM2712 SoC includes dedicated hardware decoding for HEVC/H.265. For modern streaming formats (VP9, AV1, H.264), playback relies on CPU software decoding.
-
-This is where <b>LMPE's Cortex-A76 optimizations excel</b>: multimedia decoders such as <code>dav1d</code> (AV1), <code>libvpx</code> (VP9), and <code>ffmpeg</code> (H.264) are compiled with ARMv8.2-A NEON vectorization and <code>-O3</code>, delivering smooth 1080p60 playback without dropped frames. Mozilla Firefox is pre-configured with <code>rpi-firefox-mods</code> and Widevine DRM (<code>libwidevinecdm0</code>) for Spotify, Netflix, and other DRM platforms.
+The Broadcom BCM2712 SoC provides hardware decoding for HEVC/H.265, while VP9, AV1, and H.264 are decoded on the Cortex-A76 CPU using ARMv8.2-A SIMD-optimized libraries (<code>dav1d</code>, <code>libvpx</code>, <code>ffmpeg</code>). Firefox comes pre-configured with <code>rpi-firefox-mods</code> and Widevine DRM (<code>libwidevinecdm0</code>).
 </details>
 
 <details>
 <summary><b>How do I keep LMPE updated?</b></summary>
-You can update your system using the graphical Linux Mint Update Manager (<code>mintupdate</code>) in the system tray, or via terminal:
+Use the graphical Linux Mint Update Manager (<code>mintupdate</code>) in the panel tray, or run:
 
 ```bash
 sudo apt update && sudo apt full-upgrade
@@ -238,24 +197,15 @@ sudo apt update && sudo apt full-upgrade
 </details>
 
 <details>
-<summary><b>How do bootscreen and wallpaper updates work?</b></summary>
-Bootscreens, Plymouth themes, and wallpapers are managed by the official <code>lmpe-theme</code> Debian package.
-
-* <b>Over-the-Air Updates:</b> Whenever an updated theme or new release bootscreen is published, updating the system (<code>sudo apt update && sudo apt upgrade</code> or via <code>mintupdate</code>) automatically installs the new bootscreen and regenerates the bootloader initramfs without requiring a reflash.
-* <b>Custom Wallpaper Safety:</b> If you selected a custom desktop wallpaper in Cinnamon, it will <b>never</b> be overwritten because personal user choices in dconf always take precedence over system defaults.
-* <b>Wallpaper Gallery:</b> All past and current release wallpapers are stored in <code>/usr/share/backgrounds/lmpe/</code> and can be selected graphically at any time under <b>System Settings → Backgrounds → LMPE</b>.
-</details>
-
-<details>
 <summary><b>Why is Raspberry Pi 4 / 3 not supported?</b></summary>
-LMPE is explicitly compiled for the <b>ARMv8.2-A Cortex-A76 CPU architecture</b>. Older Raspberry Pi models (Pi 4 with Cortex-A72, Pi 3 with Cortex-A53) physically lack ARMv8.2-A, hardware cryptography, and dot product instructions. Running LMPE binaries on these boards will trigger immediate <code>Illegal instruction</code> (SIGILL) crashes.
+LMPE binaries are compiled specifically for the <b>ARMv8.2-A Cortex-A76</b> microarchitecture. Older Raspberry Pi generations (Pi 4 Cortex-A72, Pi 3 Cortex-A53) lack ARMv8.2-A, hardware cryptography, and dot product instructions and will fail with <code>Illegal instruction</code> (SIGILL).
 </details>
 
 ---
 
 ## 🏷️ Tags & Keywords
 
-`raspberry-pi-5` • `cinnamon-desktop` • `linux-mint` • `lmde` • `arm64` • `compute-module-5` • `cm5` • `bcm2712` • `cortex-a76` • `btrfs` • `zstd` • `zram` • `videocore-vii` • `argon-one-up` • `operating-system` • `debian-13` • `trixie`
+`raspberry-pi-5` • `cinnamon-desktop` • `wayland` • `linux-mint` • `lmde` • `arm64` • `compute-module-5` • `cm5` • `bcm2712` • `cortex-a76` • `btrfs` • `zstd` • `zram` • `videocore-vii` • `debian-13` • `trixie`
 
 ---
 

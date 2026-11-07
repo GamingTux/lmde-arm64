@@ -56,6 +56,7 @@ jobs:
             fdisk \
             mount \
             util-linux \
+            python3 \
             debian-archive-keyring \
             gh
 
@@ -124,30 +125,24 @@ jobs:
 
           IMG_XZ="$(ls -1 *.img.xz | head -n 1)"
           {
-            echo "## 🍓 LMPE ARM64 (LMDE 7 / Cinnamon) Image for Raspberry Pi 5 & Compute Module 5"
-            echo "### 🌌 Codename: **Tatooine** ☀️☀️"
+            echo "## 🍓🍃 LMPE ARM64 (LMDE 7 \"Gigi\" / Cinnamon Wayland) Image for Raspberry Pi 5 & Compute Module 5"
             echo ""
-            echo "> **The journey begins where two suns rise...**  "
-            echo "> In tribute to our upstream Debian 13 (**T**rixie) base, **Tatooine** is the codename for this foundational LMPE generation. Just like the legendary desert world under the twin suns, *Tatooine* marks our universal starting point for all Raspberry Pi 5 and Compute Module 5 systems—rock-solid, universal, and equipped out of the box with the complete Linux Mint desktop suite."
+            echo "> **Pure Linux Mint Debian Edition (LMDE 7 \"Gigi\") experience on Raspberry Pi 5 — running 100% pure Wayland.**  "
+            echo "> Built upon **Debian 13 (Trixie)**, official **LMDE 7** adjustments, and **Raspberry Pi 5 (BCM2712 / Cortex-A76)** native packages, with zero Xorg server bloat."
             echo "> "
             echo "> *Disclaimer: LMPE is an independent community port by GamingTux and is not affiliated with, sponsored by, or endorsed by the Linux Mint team.*"
             echo ""
             echo "### ✨ Key Release Highlights"
-            echo "- **🍃 Complete Linux Mint Desktop Suite:** Full Cinnamon 6.x desktop environment, Warpinator (local network file sharing), Timeshift, Gufw (firewall), MintWelcome, MintStick, MintReport, MintBackup, MintLocale, Bulky, Folder Color Switcher, Sticky Notes, Thingy, Hypnotix (IPTV), Celluloid & Drawing."
-            echo "- **🛠️ Diagnostic & System Tools:** GParted partition manager, Baobab disk analyzer, Btrfs Compsize, Pavucontrol audio manager, Seahorse keyring manager, EarlyOOM freeze protection, Btop & Fastfetch."
-            echo "- **🗄️ High-Performance Btrfs Root Filesystem:** Transparent \`compress=zstd:2\`, flash-optimized mount options (\`noatime,nodiratime,ssd,discard=async\`), automatic first-boot partition expansion, and RAM-backed \`/tmp\`."
-            echo "- **🧠 Pure ZRAM Compressed Memory:** 4 GB LZ4 compressed swap (\`vm.swappiness = 180\`, \`vm.page-cluster = 0\`) eliminating disk wear and keeping RAM free for Btrfs caches and applications."
-            echo "- **⚡ Optimized Storage Schedulers & Rapid Boot:** Direct hardware multi-queue (\`none\`) for NVMe SSDs, \`mq-deadline\` for MicroSD/eMMC, \`bfq\` for rotational USB drives, and FAT32 boot fsck bypass (Pass 0 in fstab saving 300ms)."
-            echo "- **🔧 Developer-Ready Kernel:** Pre-configured \`fs.inotify.max_user_watches = 524288\` preventing file watcher limits in IDEs and file managers."
-            echo "- **💻 100% Universal Hardware Architecture:** Native DWC2 USB 2.0 host routing for CM5 carrier boards and laptops alongside full support for Raspberry Pi 5 desktop boards."
-            echo "- **🎨 Tatooine Signature Art Duo:** Plymouth vector boot splash with twin suns and boot spinner, paired with a distraction-free matching desktop wallpaper."
-            echo "- **🧙 Interactive First-Boot Assistant:** Setup language, keyboard layout, hostname, WiFi, and optional Argon ONE UP hardware drivers on initial boot."
-            echo "- **🌐 Modern Network & APT Stack:** Consolidated \`/etc/apt/apt.conf.d/99-lmpe.conf\` with host queues, pipelining, 3 retries, and Google TCP BBR congestion control."
+            echo "- **🍃 Pure LMDE 7 Desktop Experience:** Authentic Linux Mint Debian Edition 7 (*Gigi*) desktop with Cinnamon 6.6, official \`debian-system-adjustments\`, official \`mint-logo\` Plymouth boot splash, official Mint wallpapers & Mint-Y themes, Warpinator, Timeshift, Gufw, MintWelcome, MintStick, MintReport, MintBackup, MintLocale, Bulky, Sticky Notes, Thingy, Hypnotix, Celluloid & Drawing."
+            echo "- **🪟 100% Xorg-Free Pure Wayland Stack:** Boots directly through a Mint-Y styled Wayland LightDM greeter (\`pi-greeter-labwc\`) into \`cinnamon-wayland\` on VideoCore VII KMS/DRM — with \`xwayland\` seamlessly supporting administrative tools (Timeshift, Synaptic, GParted) and legacy apps."
+            echo "- **⚡ Cortex-A76 Native Package Repository:** Desktop, multimedia, and graphics packages natively compiled for **ARMv8.2-A Cortex-A76** (\`crypto + fp16 + dotprod\`)."
+            echo "- **🗄️ Btrfs Root Filesystem + Native ZRAM:** Transparent \`compress=zstd:2\` (\`noatime,ssd,discard=async\`) for instant Timeshift snapshots and reduced flash wear, paired with automatic first-boot filesystem expansion and Raspberry Pi OS native ZRAM swap."
+            echo "- **🧙 Streamlined 5-Step First-Boot Setup:** Configure keyboard layout, system language & timezone, hostname, Wi-Fi, and user account / autologin on initial boot."
             echo ""
             echo "### 📥 Flashing Instructions"
             echo "1. Download the compressed image \`${IMG_XZ}\`."
             echo "2. Flash directly to an NVMe SSD or MicroSD card using **[Raspberry Pi Imager](https://www.raspberrypi.com/software/)** (*Use Custom*) or **[Balena Etcher](https://etcher.balena.io/)**."
-            echo "3. Insert into your Raspberry Pi 5 / CM5 and power on. The root filesystem will automatically resize to fill your drive."
+            echo "3. Insert into your Raspberry Pi 5 / CM5 / Pi 500 and power on. The Btrfs root filesystem will automatically resize to fill your drive."
             echo ""
             echo "### 🔐 SHA256 Checksum"
             echo "\`\`\`text"
@@ -155,16 +150,53 @@ jobs:
             echo "\`\`\`"
           } > release_body.md
 
-          gh release create "$TAG" \
-            "$IMG_XZ" \
-            SHA256SUMS.txt \
-            *.info \
-            --title "LMPE \"Tatooine\" - Pi 5 & CM5 ARM64 Btrfs Image ($TAG)" \
-            --notes-file release_body.md
+          git config --global --add safe.directory '*'
+          gh release delete "$TAG" -R "${GITHUB_REPOSITORY}" --cleanup-tag -y 2>/dev/null || true
+
+          # 1. Draft-Release anlegen (mit 5x Retry gegen transiente GitHub HTTP 500/502/503 Fehler)
+          CREATED=0
+          for attempt in 1 2 3 4 5; do
+            if gh release create "$TAG" \
+              -R "${GITHUB_REPOSITORY}" \
+              --target "${GITHUB_SHA}" \
+              --draft \
+              --title "LMPE (LMDE 7 Wayland) - Pi 5 & CM5 ARM64 Btrfs Image ($TAG)" \
+              --notes-file release_body.md; then
+              CREATED=1
+              break
+            fi
+            echo "⚠️ GitHub API Fehler beim Anlegen des Releases (Versuch ${attempt}/5) – warte $((attempt * 10))s..."
+            sleep $((attempt * 10))
+          done
+          [[ "$CREATED" -eq 1 ]] || { echo "❌ Konnte Release nach 5 Versuchen nicht anlegen."; exit 1; }
+
+          # 2. Dateien einzeln mit --clobber und 5x Retry hochladen
+          for asset in "$IMG_XZ" SHA256SUMS.txt *.info; do
+            [[ -f "$asset" ]] || continue
+            UPLOADED=0
+            for attempt in 1 2 3 4 5; do
+              echo "⬆️ Lade ${asset} hoch (Versuch ${attempt}/5)..."
+              if gh release upload "$TAG" "$asset" -R "${GITHUB_REPOSITORY}" --clobber; then
+                UPLOADED=1
+                break
+              fi
+              echo "⚠️ Upload-Fehler bei ${asset} (Versuch ${attempt}/5) – warte $((attempt * 15))s..."
+              sleep $((attempt * 15))
+            done
+            [[ "$UPLOADED" -eq 1 ]] || { echo "❌ Konnte ${asset} nach 5 Versuchen nicht hochladen."; exit 1; }
+          done
+
+          # 3. Vollständiges Release veröffentlichen
+          for attempt in 1 2 3 4 5; do
+            if gh release edit "$TAG" -R "${GITHUB_REPOSITORY}" --draft=false --latest; then
+              break
+            fi
+            sleep 10
+          done
 
           # Alte Image-Releases automatisch bereinigen (immer nur die 3 neuesten behalten)
-          gh release list --limit 50 --json tagName --jq '.[3:][].tagName' | while read -r old_tag; do
+          gh release list -R "${GITHUB_REPOSITORY}" --limit 50 --json tagName --jq '.[3:][].tagName' | while read -r old_tag; do
             [[ -n "$old_tag" ]] || continue
             echo "🧹 Lösche altes Image-Release und Git-Tag: $old_tag"
-            gh release delete "$old_tag" --cleanup-tag -y || true
+            gh release delete "$old_tag" -R "${GITHUB_REPOSITORY}" --cleanup-tag -y || true
           done

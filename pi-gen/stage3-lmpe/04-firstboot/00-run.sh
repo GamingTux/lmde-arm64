@@ -2,7 +2,7 @@
 
 install -d -m 755 "${ROOTFS_DIR}/usr/local/sbin" "${ROOTFS_DIR}/etc/systemd/system" "${ROOTFS_DIR}/etc/systemd/journald.conf.d"
 
-# Persistente systemd-Logs mit Speicherbegrenzung aktivieren (99- überschreibt 40-rpi-volatile-storage.conf)
+# Persistent systemd journal with size cap (99- overrides Pi OS 40-rpi-volatile-storage.conf)
 rm -f "${ROOTFS_DIR}/etc/systemd/journald.conf.d/00-persistent.conf"
 cat << 'JCONF' > "${ROOTFS_DIR}/etc/systemd/journald.conf.d/99-persistent.conf"
 [Journal]
@@ -31,15 +31,15 @@ textbox=black,lightgray
 entry=black,white
 '
 
-# Plymouth für das interaktive First-Boot-Menü beenden und TTY1 aktivieren
+# Stop Plymouth for the interactive first-boot wizard and switch to TTY1
 /usr/bin/plymouth deactivate 2>/dev/null || true
 /usr/bin/plymouth quit 2>/dev/null || true
 chvt 1 2>/dev/null || true
 clear
 
 # --- 1. Keyboard Layout ---
-KB_LAYOUT=$(whiptail --title "LMPE First-Boot Setup (1/8) - Keyboard Layout" \
-    --menu "Please select your keyboard layout:" 18 70 8 \
+KB_LAYOUT=$(whiptail --title "LMPE First-Boot Setup (1/5) - Keyboard Layout" \
+    --menu "Please select your keyboard layout:" 20 70 12 \
     "us"            "English (US QWERTY)" \
     "gb"            "English (UK QWERTY)" \
     "de"            "German (Standard QWERTZ)" \
@@ -48,26 +48,23 @@ KB_LAYOUT=$(whiptail --title "LMPE First-Boot Setup (1/8) - Keyboard Layout" \
     "at"            "German (Austria)" \
     "fr"            "French (AZERTY)" \
     "es"            "Spanish" \
+    "it"            "Italian" \
+    "nl"            "Dutch" \
+    "pl"            "Polish" \
+    "pt"            "Portuguese" \
     3>&1 1>&2 2>&3) || KB_LAYOUT="us"
 
 case "$KB_LAYOUT" in
     de-nodeadkeys) XKB_LAYOUT="de"; XKB_VARIANT="nodeadkeys" ;;
-    de)            XKB_LAYOUT="de"; XKB_VARIANT="" ;;
-    ch)            XKB_LAYOUT="ch"; XKB_VARIANT="" ;;
-    at)            XKB_LAYOUT="at"; XKB_VARIANT="" ;;
-    fr)            XKB_LAYOUT="fr"; XKB_VARIANT="" ;;
-    es)            XKB_LAYOUT="es"; XKB_VARIANT="" ;;
-    gb)            XKB_LAYOUT="gb"; XKB_VARIANT="" ;;
-    us)            XKB_LAYOUT="us"; XKB_VARIANT="" ;;
     *)             XKB_LAYOUT="$KB_LAYOUT"; XKB_VARIANT="" ;;
 esac
 
-# 1. Systemweites /etc/default/keyboard für TTY, Slick-Greeter & X11 setzen
+# 1. Configure system-wide /etc/default/keyboard
 grep -q "^XKBLAYOUT=" /etc/default/keyboard && sed -i "s/^XKBLAYOUT=.*/XKBLAYOUT=\"$XKB_LAYOUT\"/" /etc/default/keyboard || echo "XKBLAYOUT=\"$XKB_LAYOUT\"" >> /etc/default/keyboard
 grep -q "^XKBVARIANT=" /etc/default/keyboard && sed -i "s/^XKBVARIANT=.*/XKBVARIANT=\"$XKB_VARIANT\"/" /etc/default/keyboard || echo "XKBVARIANT=\"$XKB_VARIANT\"" >> /etc/default/keyboard
 grep -q "^XKBMODEL=" /etc/default/keyboard || echo 'XKBMODEL="pc105"' >> /etc/default/keyboard
 
-# 2. Sofort auf der TTY anwenden, damit Passworteingaben im Setup direkt das gewählte Layout nutzen
+# 2. Apply immediately on TTY so Wi-Fi & user password prompts use the selected layout
 if [ -n "$XKB_VARIANT" ]; then
     ckbcomp "$XKB_LAYOUT" "$XKB_VARIANT" 2>/dev/null | loadkeys 2>/dev/null || true
 else
@@ -77,7 +74,13 @@ setupcon -k --force 2>/dev/null || true
 setupcon --save-only 2>/dev/null || true
 udevadm trigger --subsystem-match=input --action=change 2>/dev/null || true
 
-# 3. X11 / systemd-localed synchronisieren
+# 3. Update Wayland login greeter (labwc-greeter) keyboard layout
+if [ -f /etc/xdg/labwc-greeter/environment ]; then
+    sed -i "s/^XKB_DEFAULT_LAYOUT=.*/XKB_DEFAULT_LAYOUT=${XKB_LAYOUT}/" /etc/xdg/labwc-greeter/environment 2>/dev/null || true
+    sed -i "s/^XKB_DEFAULT_VARIANT=.*/XKB_DEFAULT_VARIANT=${XKB_VARIANT}/" /etc/xdg/labwc-greeter/environment 2>/dev/null || true
+fi
+
+# 4. Sync systemd-localed & Cinnamon Wayland / GNOME GSettings input-sources defaults
 if [ -n "$XKB_VARIANT" ]; then
     localectl set-x11-keymap "$XKB_LAYOUT" pc105 "$XKB_VARIANT" 2>/dev/null || true
     INPUT_SRC="[('xkb', '${XKB_LAYOUT}+${XKB_VARIANT}')]"
@@ -86,7 +89,6 @@ else
     INPUT_SRC="[('xkb', '${XKB_LAYOUT}')]"
 fi
 
-# 4. Cinnamon & GNOME Desktop Input Sources Schema-Default setzen
 mkdir -p /usr/share/glib-2.0/schemas
 cat << SKBD > /usr/share/glib-2.0/schemas/zz-lmpe-keyboard.gschema.override
 [org.cinnamon.desktop.input-sources]
@@ -97,27 +99,37 @@ sources=$INPUT_SRC
 SKBD
 glib-compile-schemas /usr/share/glib-2.0/schemas 2>/dev/null || true
 
-whiptail --title "LMPE First-Boot Setup (1/8) - Keyboard Test" \
+whiptail --title "LMPE First-Boot Setup (1/5) - Keyboard Test" \
     --inputbox "Keyboard layout applied. You can test typing here (e.g. Z, Y, @, ?, -, _):\n(Select 'OK' or press Enter to continue)" 12 70 "" 3>&1 1>&2 2>&3 || true
 
 # --- 2. System Language & Timezone ---
-LOCALE_CHOICE=$(whiptail --title "LMPE First-Boot Setup (2/8) - Language & Timezone" \
-    --menu "Please select your system language and timezone:" 16 70 6 \
+LOCALE_CHOICE=$(whiptail --title "LMPE First-Boot Setup (2/5) - Language & Timezone" \
+    --menu "Please select your system language and timezone:" 20 70 11 \
     "en_US.UTF-8" "English (US)      - UTC" \
     "en_GB.UTF-8" "English (UK)      - Europe/London" \
     "de_DE.UTF-8" "German (Germany)  - Europe/Berlin" \
     "de_AT.UTF-8" "German (Austria)  - Europe/Vienna" \
     "de_CH.UTF-8" "German (Swiss)    - Europe/Zurich" \
     "fr_FR.UTF-8" "French (France)   - Europe/Paris" \
+    "es_ES.UTF-8" "Spanish (Spain)   - Europe/Madrid" \
+    "it_IT.UTF-8" "Italian (Italy)   - Europe/Rome" \
+    "nl_NL.UTF-8" "Dutch             - Europe/Amsterdam" \
+    "pl_PL.UTF-8" "Polish            - Europe/Warsaw" \
+    "pt_PT.UTF-8" "Portuguese        - Europe/Lisbon" \
     3>&1 1>&2 2>&3) || LOCALE_CHOICE="en_US.UTF-8"
 
 case "$LOCALE_CHOICE" in
-    en_GB.UTF-8) TZ_CHOICE="Europe/London"; WIFI_CC="GB" ;;
-    de_DE.UTF-8) TZ_CHOICE="Europe/Berlin"; WIFI_CC="DE" ;;
-    de_AT.UTF-8) TZ_CHOICE="Europe/Vienna"; WIFI_CC="AT" ;;
-    de_CH.UTF-8) TZ_CHOICE="Europe/Zurich"; WIFI_CC="CH" ;;
-    fr_FR.UTF-8) TZ_CHOICE="Europe/Paris";  WIFI_CC="FR" ;;
-    *)           TZ_CHOICE="UTC";           WIFI_CC="US" ;;
+    en_GB.UTF-8) TZ_CHOICE="Europe/London";    WIFI_CC="GB" ;;
+    de_DE.UTF-8) TZ_CHOICE="Europe/Berlin";    WIFI_CC="DE" ;;
+    de_AT.UTF-8) TZ_CHOICE="Europe/Vienna";    WIFI_CC="AT" ;;
+    de_CH.UTF-8) TZ_CHOICE="Europe/Zurich";    WIFI_CC="CH" ;;
+    fr_FR.UTF-8) TZ_CHOICE="Europe/Paris";     WIFI_CC="FR" ;;
+    es_ES.UTF-8) TZ_CHOICE="Europe/Madrid";    WIFI_CC="ES" ;;
+    it_IT.UTF-8) TZ_CHOICE="Europe/Rome";      WIFI_CC="IT" ;;
+    nl_NL.UTF-8) TZ_CHOICE="Europe/Amsterdam"; WIFI_CC="NL" ;;
+    pl_PL.UTF-8) TZ_CHOICE="Europe/Warsaw";    WIFI_CC="PL" ;;
+    pt_PT.UTF-8) TZ_CHOICE="Europe/Lisbon";    WIFI_CC="PT" ;;
+    *)           TZ_CHOICE="UTC";              WIFI_CC="US" ;;
 esac
 
 if [ -n "$LOCALE_CHOICE" ]; then
@@ -127,6 +139,8 @@ if [ -n "$LOCALE_CHOICE" ]; then
         locale-gen "$LOCALE_CHOICE" >/dev/null 2>&1 || locale-gen >/dev/null 2>&1 || true
     fi
     update-locale --reset LANG="$LOCALE_CHOICE" LANGUAGE="${LOCALE_CHOICE%%.*}" 2>/dev/null || echo "LANG=$LOCALE_CHOICE" > /etc/locale.conf
+    echo "LANG=$LOCALE_CHOICE" > /etc/locale.conf
+    systemctl set-environment LANG="$LOCALE_CHOICE" LANGUAGE="${LOCALE_CHOICE%%.*}" 2>/dev/null || true
 fi
 raspi-config nonint do_change_timezone "$TZ_CHOICE" 2>/dev/null || true
 raspi-config nonint do_wifi_country "$WIFI_CC" 2>/dev/null || true
@@ -136,7 +150,7 @@ nmcli radio wifi on 2>/dev/null || true
 # --- 3. Hostname ---
 CURRENT_HOST=$(hostname)
 while true; do
-    NEW_HOST=$(whiptail --title "LMPE First-Boot Setup (3/8) - Hostname" \
+    NEW_HOST=$(whiptail --title "LMPE First-Boot Setup (3/5) - Hostname" \
         --inputbox "Enter a network name (hostname) for this Raspberry Pi:" 12 70 "${CURRENT_HOST:-lmpe-pi5}" \
         3>&1 1>&2 2>&3) || NEW_HOST="${CURRENT_HOST:-lmpe-pi5}"
     if echo "$NEW_HOST" | grep -Eq '^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]$'; then
@@ -150,7 +164,7 @@ while true; do
 done
 
 # --- 4. Wi-Fi Configuration ---
-if whiptail --title "LMPE First-Boot Setup (4/8) - Wi-Fi Setup" \
+if whiptail --title "LMPE First-Boot Setup (4/5) - Wi-Fi Setup" \
     --yesno "Would you like to connect to a Wi-Fi network now?\n(Select 'No' if using Ethernet or if you wish to configure Wi-Fi later in the desktop)" 12 70; then
     rfkill unblock wifi 2>/dev/null || true
     nmcli radio wifi on 2>/dev/null || true
@@ -164,12 +178,12 @@ if whiptail --title "LMPE First-Boot Setup (4/8) - Wi-Fi Setup" \
             fi
             continue
         fi
-        SSID=$(whiptail --title "LMPE First-Boot Setup (4/8) - Select Wi-Fi" \
+        SSID=$(whiptail --title "LMPE First-Boot Setup (4/5) - Select Wi-Fi" \
             --menu "Choose your Wi-Fi network (Cancel to skip):" 20 75 10 \
             "${WIFI_LIST[@]}" \
             3>&1 1>&2 2>&3) || break
 
-        PASS_MODE=$(whiptail --title "LMPE First-Boot Setup (4/8) - Password Input" \
+        PASS_MODE=$(whiptail --title "LMPE First-Boot Setup (4/5) - Password Input" \
             --menu "How would you like to enter the Wi-Fi password for '$SSID'?" 13 65 2 \
             "visible" "Show in plain text (Recommended to prevent typos)" \
             "hidden"  "Mask with asterisks (*)" \
@@ -203,12 +217,12 @@ if whiptail --title "LMPE First-Boot Setup (4/8) - Wi-Fi Setup" \
     done
 fi
 
-# --- 5. Username & Password ---
+# --- 5. User Account, Password & Automatic Login ---
 FIRST_USER=$(getent passwd 1000 | cut -d: -f1)
 FIRST_USER=${FIRST_USER:-pi}
 
 while true; do
-    NEW_USER=$(whiptail --title "LMPE First-Boot Setup (5/8) - Username" \
+    NEW_USER=$(whiptail --title "LMPE First-Boot Setup (5/5) - Username" \
         --inputbox "Desired username (lowercase letters, numbers; starts with a letter):" 12 70 "$FIRST_USER" \
         3>&1 1>&2 2>&3) || NEW_USER="$FIRST_USER"
     if echo "$NEW_USER" | grep -Eq '^[a-z][a-z0-9_-]{0,30}$' && [ "$NEW_USER" != "root" ]; then
@@ -219,14 +233,14 @@ while true; do
 done
 
 while true; do
-    PASS1=$(whiptail --title "LMPE First-Boot Setup (5/8) - Password" \
+    PASS1=$(whiptail --title "LMPE First-Boot Setup (5/5) - Password" \
         --passwordbox "Enter new password for user '$NEW_USER':" 12 70 \
         3>&1 1>&2 2>&3) || continue
     if [ -z "$PASS1" ]; then
         whiptail --title "Error" --msgbox "The password cannot be empty." 10 50
         continue
     fi
-    PASS2=$(whiptail --title "LMPE First-Boot Setup (5/8) - Confirm Password" \
+    PASS2=$(whiptail --title "LMPE First-Boot Setup (5/5) - Confirm Password" \
         --passwordbox "Please re-enter the password to confirm:" 12 70 \
         3>&1 1>&2 2>&3) || continue
     if [ "$PASS1" != "$PASS2" ]; then
@@ -249,14 +263,14 @@ for grp in sudo adm dialout cdrom audio users video plugdev input netdev render 
 done
 
 AUTOLOGIN="no"
-if whiptail --title "LMPE First-Boot Setup (5/8) - Automatic Login" \
-    --yesno "Would you like to automatically log into the desktop without entering your password on boot?\n\n(Select 'No' to require your password on the login screen)" 12 70; then
+if whiptail --title "LMPE First-Boot Setup (5/5) - Automatic Login" \
+    --yesno "Would you like to automatically log into the Cinnamon Wayland desktop without entering your password on boot?\n\n(Select 'No' to require your password on the login screen)" 12 70; then
     AUTOLOGIN="yes"
     groupadd -f autologin 2>/dev/null || true
     usermod -aG autologin "$NEW_USER" 2>/dev/null || true
 fi
 
-# Initialer updates.json Seed für mintupdate im User-Home (mit gültigem Datum zur Vermeidung von strptime-Tracebacks)
+# Initial updates.json seed for mintupdate in user home
 USER_HOME=$(getent passwd "$NEW_USER" | cut -d: -f6)
 if [ -n "$USER_HOME" ] && [ -d "$USER_HOME" ]; then
     mkdir -p "$USER_HOME/.linuxmint/mintupdate"
@@ -266,134 +280,44 @@ if [ -n "$USER_HOME" ] && [ -d "$USER_HOME" ]; then
     chown -R "${NEW_USER}:${NEW_USER}" "$USER_HOME/.linuxmint" 2>/dev/null || true
 fi
 
-# --- 6. Hardware Platform Profile (Standard Pi vs. Argon ONE UP) ---
-HW_CHOICE=$(whiptail --title "LMPE First-Boot Setup (6/8) - Hardware Profile" \
-    --menu "Please select the hardware profile for this system:" 14 70 2 \
-    "generic" "Standard Raspberry Pi 5 / Compute Module 5 (Universal)" \
-    "argon"   "Argon ONE UP Laptop (Battery, suspend, display, fan & CM5 fixes)" \
-    3>&1 1>&2 2>&3) || HW_CHOICE="generic"
-
-BOOTCONF="/boot/firmware/config.txt"
-[ ! -f "$BOOTCONF" ] && BOOTCONF="/boot/config.txt"
-
-if [ "$HW_CHOICE" = "argon" ]; then
-    whiptail --title "Hardware Setup" --infobox "Installing Argon ONE UP hardware packages and drivers..." 8 65
-    if compgen -G "/usr/share/argon-debs/*.deb" >/dev/null; then
-        dpkg -i --force-confnew /usr/share/argon-debs/*.deb 2>/dev/null || apt-get install -fy 2>/dev/null || true
-    fi
-    /usr/bin/rpi-suspend set-profile argon-oneup 2>/dev/null || true
-    # Argon ONE UP Aluminiumgehäuse: Externe Antenne (ant2) gezielt für CM5/CM4 aktivieren
-    if [ -f "$BOOTCONF" ] && ! grep -q "dtparam=ant2" "$BOOTCONF"; then
-        if grep -q "^\[cm5\]" "$BOOTCONF"; then
-            sed -i '/^\[cm5\]/a dtparam=ant2' "$BOOTCONF"
-        fi
-        if grep -q "^\[cm4\]" "$BOOTCONF"; then
-            sed -i '/^\[cm4\]/a dtparam=ant2' "$BOOTCONF"
-        fi
-    fi
-    rm -rf /usr/share/argon-debs
-    USB_BOOST_DEF="ON"
-    whiptail --title "Hardware Profile" --msgbox "Argon ONE UP hardware profile enabled successfully!" 10 55
-else
-    # Remove staging debs on generic hardware
-    rm -rf /usr/share/argon-debs
-    /usr/bin/rpi-suspend set-profile generic 2>/dev/null || true
-    USB_BOOST_DEF="OFF"
-    whiptail --title "Hardware Profile" --msgbox "Standard Raspberry Pi 5 / Compute Module 5 profile active." 10 65
-fi
-
-# --- 7. Optional Hardware & System Tweaks ---
-TWEAK_CHOICES=$(whiptail --title "LMPE First-Boot Setup (7/8) - Optional System Tweaks" \
-    --checklist "Select optional hardware features and performance tweaks to enable:\n(Use UP/DOWN arrows to navigate, SPACE to toggle [X], ENTER to confirm)" 17 78 6 \
-    "pcie_gen3"  "PCIe Gen 3.0 mode (~850 MB/s for fast NVMe SSDs)" "OFF" \
-    "oc_2800"    "Overclock CPU to 2.8 GHz (Requires active cooling)" "OFF" \
-    "usb_boost"  "Unlock 1.6A USB port current on non-PD 5V power" "$USB_BOOST_DEF" \
-    "ssh_server" "Enable SSH server for remote terminal/SFTP access" "OFF" \
-    "i2c_spi"    "Enable GPIO I2C & SPI buses (Sensors, Displays, HATs)" "ON" \
-    "bt_auto"    "Enable Bluetooth automatically on system startup" "ON" \
-    3>&1 1>&2 2>&3) || TWEAK_CHOICES="\"i2c_spi\" \"bt_auto\""
-
-if [ -f "$BOOTCONF" ]; then
-    # PCIe Gen 3.0
-    sed -i '/^dtparam=pciex1_gen=/d' "$BOOTCONF"
-    if [[ "$TWEAK_CHOICES" == *"pcie_gen3"* ]]; then
-        echo "dtparam=pciex1_gen=3" >> "$BOOTCONF"
-    fi
-
-    # CPU Overclock to 2800 MHz (leave GPU untouched)
-    sed -i '/^arm_freq=/d' "$BOOTCONF"
-    if [[ "$TWEAK_CHOICES" == *"oc_2800"* ]]; then
-        echo "arm_freq=2800" >> "$BOOTCONF"
-    fi
-
-    # USB Max Current Boost (1.6A)
-    sed -i '/^usb_max_current_enable=/d' "$BOOTCONF"
-    if [[ "$TWEAK_CHOICES" == *"usb_boost"* ]] || [ "$HW_CHOICE" = "argon" ]; then
-        echo "usb_max_current_enable=1" >> "$BOOTCONF"
-    fi
-
-    # GPIO I2C & SPI Buses
-    if [[ "$TWEAK_CHOICES" == *"i2c_spi"* ]] || [ "$HW_CHOICE" = "argon" ]; then
-        sed -i 's/^#*dtparam=i2c_arm=.*/dtparam=i2c_arm=on/' "$BOOTCONF"
-        sed -i 's/^#*dtparam=spi=.*/dtparam=spi=on/' "$BOOTCONF"
-    else
-        sed -i 's/^dtparam=i2c_arm=.*/#dtparam=i2c_arm=on/' "$BOOTCONF"
-        sed -i 's/^dtparam=spi=.*/#dtparam=spi=on/' "$BOOTCONF"
-    fi
-fi
-
-# SSH Server (ssh.socket)
-if [[ "$TWEAK_CHOICES" == *"ssh_server"* ]]; then
-    systemctl enable ssh.socket 2>/dev/null || true
-    systemctl start ssh.socket 2>/dev/null || true
-else
-    systemctl disable ssh.socket ssh.service 2>/dev/null || true
-fi
-
-# Bluetooth Auto-Enable on Boot
-if [ -f /etc/bluetooth/main.conf ]; then
-    if [[ "$TWEAK_CHOICES" == *"bt_auto"* ]]; then
-        sed -i "s/^#*AutoEnable.*/AutoEnable = true/" /etc/bluetooth/main.conf 2>/dev/null || true
-        rfkill unblock bluetooth 2>/dev/null || true
-    else
-        sed -i "s/^#*AutoEnable.*/AutoEnable = false/" /etc/bluetooth/main.conf 2>/dev/null || true
-        rfkill block bluetooth 2>/dev/null || true
-    fi
-fi
-
-# --- 8. Default Desktop Session (X11 vs. Wayland) ---
-SESSION_CHOICE=$(whiptail --title "LMPE First-Boot Setup (8/8) - Desktop Session" \
-    --menu "Choose the default Cinnamon desktop display session:\n(You can switch sessions anytime on the login screen)" 16 75 2 \
-    "cinnamon"         "Cinnamon on X11 (Recommended - Maximum stability)" \
-    "cinnamon-wayland" "Cinnamon on Wayland (Experimental - Tear-free rendering)" \
-    3>&1 1>&2 2>&3) || SESSION_CHOICE="cinnamon"
-
+# Pure Wayland LightDM configuration (pi-greeter-labwc -> cinnamon-wayland)
 mkdir -p /etc/lightdm/lightdm.conf.d
+rm -f /etc/lightdm/lightdm.conf.d/90-slick-greeter.conf
 if [ "$AUTOLOGIN" = "yes" ]; then
-    cat << LCONF > /etc/lightdm/lightdm.conf.d/90-slick-greeter.conf
+    cat << LCONF > /etc/lightdm/lightdm.conf.d/90-lmpe-wayland.conf
+[SeatDefaults]
+user-session=cinnamon-wayland
+
 [Seat:*]
-greeter-session=slick-greeter
-user-session=${SESSION_CHOICE}
+greeter-session=pi-greeter-labwc
+user-session=cinnamon-wayland
+autologin-session=cinnamon-wayland
+session-wrapper=/usr/sbin/lightdm-wayland-session
 greeter-hide-users=false
 autologin-user=${NEW_USER}
 autologin-user-timeout=0
 LCONF
 else
-    cat << LCONF > /etc/lightdm/lightdm.conf.d/90-slick-greeter.conf
+    cat << LCONF > /etc/lightdm/lightdm.conf.d/90-lmpe-wayland.conf
+[SeatDefaults]
+user-session=cinnamon-wayland
+
 [Seat:*]
-greeter-session=slick-greeter
-user-session=${SESSION_CHOICE}
+greeter-session=pi-greeter-labwc
+user-session=cinnamon-wayland
+autologin-session=cinnamon-wayland
+session-wrapper=/usr/sbin/lightdm-wayland-session
 greeter-hide-users=false
 LCONF
 fi
 
-
-# First-Boot-Service deaktivieren, damit er nur beim allerersten Start läuft
+# Disable first-boot service and remove wizard script so it only runs once
 systemctl disable lmpe-firstboot.service 2>/dev/null || true
+rm -f /usr/local/sbin/lmpe-firstboot.sh
 sync
 
 if whiptail --title "LMPE Setup Complete" \
-    --yesno "Setup is complete!\n\nYour configuration and hardware profile have been applied.\n\nA system restart is recommended so all hardware changes (antenna, power management, device overlays) take full effect.\n\nWould you like to restart now?" 15 70; then
+    --yesno "Setup is complete!\n\nWould you like to restart now so all locale, hostname, and timezone settings take clean effect across the entire system?\n\n(Select 'No' to proceed directly to the Cinnamon Wayland desktop)" 14 70; then
     whiptail --title "Rebooting" --infobox "Rebooting system, please wait..." 8 45
     sleep 1
     systemctl --no-block reboot

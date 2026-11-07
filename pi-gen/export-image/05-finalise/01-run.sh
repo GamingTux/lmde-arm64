@@ -19,8 +19,6 @@ on_chroot <<- EOF
 	install -m 644 -o systemd-timesync -g systemd-timesync /dev/null /var/lib/systemd/timesync/clock
 EOF
 
-ln -sf ../run/systemd/resolve/stub-resolv.conf "${ROOTFS_DIR}/etc/resolv.conf"
-
 if [ -f "${ROOTFS_DIR}/etc/initramfs-tools/update-initramfs.conf" ]; then
 	sed -i 's/^update_initramfs=.*/update_initramfs=yes/' "${ROOTFS_DIR}/etc/initramfs-tools/update-initramfs.conf"
 	sed -i 's/^MODULES=.*/MODULES=most/' "${ROOTFS_DIR}/etc/initramfs-tools/initramfs.conf"
