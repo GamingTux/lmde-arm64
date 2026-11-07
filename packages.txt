@@ -269,7 +269,6 @@ xdg-desktop-portal-gtk
 python3.13
 ffmpegthumbnailer
 fastfetch
-rpi-imager
 
 # ==============================================================================
 # Stufe 1: LMDE 7 ("gigi") / Cinnamon 6.6 Wayland, XApps & Linux Mint Desktop-Stack
@@ -315,3 +314,4 @@ seahorse
 gparted
 synaptic
 mint-info
+fcitx
