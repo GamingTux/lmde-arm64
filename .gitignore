@@ -9,3 +9,5 @@ deploy/
 pi-gen/work/
 pi-gen/deploy/
 .build_failed
+__pycache__/
+*.py[cod]
