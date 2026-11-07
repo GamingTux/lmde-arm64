@@ -1,0 +1,23 @@
+Architectures: arm64
+Codename: gigi
+Components: main
+Date: Sat, 07 Nov 2026 10:07:39 +0000
+Label: LMDE-ARM64
+Origin: LMDE-ARM64
+Suite: gigi
+MD5Sum:
+ ae5acd73c6f84e8609b6613c24a788d6              140 Release
+ 768010dfd4bf27ec860b9495cd3c2f26          1537876 main/binary-arm64/Packages
+ f60024f041144eadee9c8747985fd3ca           366927 main/binary-arm64/Packages.gz
+SHA1:
+ ddfab7b3fe49a031f801f7ad91ccdc9e2e1166fe              140 Release
+ bd513e1d93a059f091a290164d53b232fc0cc5ce          1537876 main/binary-arm64/Packages
+ fd2d36f4997405067d74e306415c168c0f8d1cd7           366927 main/binary-arm64/Packages.gz
+SHA256:
+ 414506dc316ca50ddfef05c3828b5aa78051a76d749887c4dac5cb8a0a4f9447              140 Release
+ d1616e84d7c2106fc8210ef0aeac5a24f5f07c88f4a6a01c60078dbc61f4223f          1537876 main/binary-arm64/Packages
+ bd2653eda3e463e6d55bc8e246c33176e74d0efcb940fd30085914285af68fed           366927 main/binary-arm64/Packages.gz
+SHA512:
+ 67deb1b8e7b32b703b4b9a9df64a83860832e2348fd1a436fd00333e3934d2b8fe023c41080be1b2776f5c4b3736477b012920d27e6571a52275cb3376a90bcb              140 Release
+ f959dce720f68b6949ac9be3ca9901af38fe6c70b917f95fb4c132b2de4570b071f8796143a137363aeecce89d1bb3e7a4dcbb4ead937357b99e82f0e6bdc61b          1537876 main/binary-arm64/Packages
+ 9169344f296cc89814a9953ba4f5bffa3d0790c9ff057d5e51bab444fda3f7e6d40d7d6856f386576d8285059023425cf1e4a24799608af28c62128fda1a94a5           366927 main/binary-arm64/Packages.gz
