@@ -119,7 +119,7 @@ echo ">>> [6/6] Configuring pure Wayland LightDM session & official LMDE Plymout
 install -d -m 755 /usr/sbin /etc/lightdm/lightdm.conf.d /etc/xdg/labwc-greeter /etc/xdg/autostart /etc/polkit-1/rules.d
 
 cat << 'EOF' > /usr/sbin/lightdm-wayland-session
-#!/bin/sh
+#!/bin/bash
 # Pure Wayland session wrapper for LightDM (replaces X11-only /etc/X11/Xsession)
 for file in /etc/profile "$HOME/.profile"; do
     if [ -f "$file" ]; then
@@ -130,6 +130,13 @@ done
 export PATH="$PATH:/usr/local/sbin:/usr/sbin:/sbin"
 export GTK_MODULES="${GTK_MODULES:+$GTK_MODULES:}xapp-gtk3-module"
 export QT_QPA_PLATFORM="wayland;xcb"
+export GDK_BACKEND="wayland,x11"
+export CLUTTER_BACKEND="wayland"
+export SDL_VIDEODRIVER="wayland,x11"
+export MOZ_ENABLE_WAYLAND="1"
+export XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-wayland}"
+export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-X-Cinnamon}"
+export XDG_SESSION_DESKTOP="${XDG_SESSION_DESKTOP:-cinnamon-wayland}"
 
 if [ -z "$XDG_DATA_DIRS" ]; then
     export XDG_DATA_DIRS="/usr/share/gnome:/home/$USER/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:/usr/local/share:/usr/share"
@@ -144,7 +151,13 @@ if command -v dbus-update-activation-environment >/dev/null 2>&1; then
     dbus-update-activation-environment --systemd --all 2>/dev/null || true
 fi
 
-exec "$@"
+# LightDM passes the entire desktop file Exec string as a single argument ($1).
+# Using eval exec ensures word-splitting occurs so arguments (--wayland, etc.) are parsed.
+if [ $# -gt 0 ]; then
+    eval exec "$@"
+else
+    exec cinnamon-session-cinnamon --wayland
+fi
 EOF
 chmod 755 /usr/sbin/lightdm-wayland-session
 
