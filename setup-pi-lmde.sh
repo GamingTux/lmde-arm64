@@ -129,11 +129,12 @@ done
 
 export PATH="$PATH:/usr/local/sbin:/usr/sbin:/sbin"
 export GTK_MODULES="${GTK_MODULES:+$GTK_MODULES:}xapp-gtk3-module"
-export QT_QPA_PLATFORM="wayland;xcb"
-export GDK_BACKEND="wayland,x11"
-export CLUTTER_BACKEND="wayland"
-export SDL_VIDEODRIVER="wayland,x11"
-export MOZ_ENABLE_WAYLAND="1"
+export GDK_BACKEND="x11,wayland"
+export QT_QPA_PLATFORM="xcb;wayland"
+export CLUTTER_BACKEND="x11"
+export SDL_VIDEODRIVER="x11,wayland"
+export WAYLAND_DISPLAY="wayland-0"
+export DISPLAY="${DISPLAY:-:0}"
 export XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-wayland}"
 export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-X-Cinnamon}"
 export XDG_SESSION_DESKTOP="${XDG_SESSION_DESKTOP:-cinnamon-wayland}"
@@ -148,7 +149,10 @@ else
 fi
 
 if command -v dbus-update-activation-environment >/dev/null 2>&1; then
-    dbus-update-activation-environment --systemd --all 2>/dev/null || true
+    dbus-update-activation-environment --systemd WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_DESKTOP GDK_BACKEND QT_QPA_PLATFORM 2>/dev/null || true
+fi
+if command -v systemctl >/dev/null 2>&1; then
+    systemctl --user import-environment WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_DESKTOP GDK_BACKEND QT_QPA_PLATFORM 2>/dev/null || true
 fi
 
 # LightDM passes the entire desktop file Exec string as a single argument ($1).
@@ -248,6 +252,19 @@ polkit.addRule(function(action, subject) {
 EOF
 chmod 644 /etc/polkit-1/rules.d/60-aptkit.rules
 
+# Qt & GTK backend configuration (Xwayland primary for instant app startup without Wayland protocol negotiation stalls)
+if ! grep -q "QT_QPA_PLATFORM" /etc/environment 2>/dev/null; then
+    echo 'QT_QPA_PLATFORM="xcb;wayland"' >> /etc/environment
+else
+    sed -i 's/^QT_QPA_PLATFORM=.*/QT_QPA_PLATFORM="xcb;wayland"/' /etc/environment
+fi
+if ! grep -q "GDK_BACKEND" /etc/environment 2>/dev/null; then
+    echo 'GDK_BACKEND="x11,wayland"' >> /etc/environment
+else
+    sed -i 's/^GDK_BACKEND=.*/GDK_BACKEND="x11,wayland"/' /etc/environment
+fi
+sed -i '/^MOZ_X11_EGL=/d' /etc/environment 2>/dev/null || true
+
 # Import Wayland environment into D-Bus and systemd user session on Cinnamon startup
 install -d -m 755 /usr/libexec /etc/xdg/xdg-desktop-portal /etc/sysctl.d
 
@@ -264,12 +281,13 @@ export DISPLAY="${DISPLAY:-:0}"
 export XDG_CURRENT_DESKTOP="X-Cinnamon"
 export XDG_SESSION_TYPE="wayland"
 export XDG_SESSION_DESKTOP="cinnamon-wayland"
+export GDK_BACKEND="x11,wayland"
+export QT_QPA_PLATFORM="xcb;wayland"
 if command -v dbus-update-activation-environment >/dev/null 2>&1; then
-    dbus-update-activation-environment --systemd WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_DESKTOP 2>/dev/null || true
+    dbus-update-activation-environment --systemd WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_DESKTOP GDK_BACKEND QT_QPA_PLATFORM 2>/dev/null || true
 fi
 if command -v systemctl >/dev/null 2>&1; then
-    systemctl --user import-environment WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_DESKTOP 2>/dev/null || true
-    systemctl --user restart xdg-desktop-portal.service 2>/dev/null || true
+    systemctl --user import-environment WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_DESKTOP GDK_BACKEND QT_QPA_PLATFORM 2>/dev/null || true
 fi
 EOF
 chmod 755 /usr/libexec/wayland-env-import.sh
@@ -294,6 +312,7 @@ org.freedesktop.impl.portal.Secret=gnome-keyring;
 org.freedesktop.impl.portal.Inhibit=none
 org.freedesktop.impl.portal.ScreenSaver=none
 org.freedesktop.impl.portal.Lockdown=none
+org.freedesktop.impl.portal.Wallpaper=none
 EOF
 cp /etc/xdg/xdg-desktop-portal/portals.conf /etc/xdg/xdg-desktop-portal/x-cinnamon-portals.conf
 
@@ -311,10 +330,8 @@ if [ "$1" = "--wayland" ]; then
     (
         for i in $(seq 1 50); do
             if [ -S "$XDG_RUNTIME_DIR/wayland-0" ]; then
-                sleep 0.1
-                dbus-update-activation-environment --systemd WAYLAND_DISPLAY=wayland-0 DISPLAY=:0 XDG_CURRENT_DESKTOP=X-Cinnamon XDG_SESSION_TYPE=wayland XDG_SESSION_DESKTOP=cinnamon-wayland 2>/dev/null || true
-                systemctl --user import-environment WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_DESKTOP 2>/dev/null || true
-                systemctl --user restart xdg-desktop-portal 2>/dev/null || true
+                dbus-update-activation-environment --systemd WAYLAND_DISPLAY=wayland-0 DISPLAY=:0 XDG_CURRENT_DESKTOP=X-Cinnamon XDG_SESSION_TYPE=wayland XDG_SESSION_DESKTOP=cinnamon-wayland GDK_BACKEND=x11,wayland QT_QPA_PLATFORM=xcb;wayland 2>/dev/null || true
+                systemctl --user import-environment WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_DESKTOP GDK_BACKEND QT_QPA_PLATFORM 2>/dev/null || true
                 break
             fi
             sleep 0.1
