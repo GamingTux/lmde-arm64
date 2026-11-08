@@ -297,9 +297,12 @@ org.freedesktop.impl.portal.Lockdown=none
 EOF
 cp /etc/xdg/xdg-desktop-portal/portals.conf /etc/xdg/xdg-desktop-portal/x-cinnamon-portals.conf
 
-cat << 'EOF' > /etc/sysctl.d/99-usb-storage.conf
-vm.dirty_background_bytes = 16777216
-vm.dirty_bytes = 41943040
+# Prevent USB flash drive write stalls specifically without restricting NVMe SSD throughput
+install -d -m 755 /etc/udev/rules.d
+cat << 'EOF' > /etc/udev/rules.d/99-usb-dirty-bytes.rules
+# Throttle writeback dirty buffer specifically on slow USB storage to avoid system freezes,
+# while leaving fast NVMe / PCIe SSDs at full unthrottled kernel write cache speed.
+ACTION=="add|change", SUBSYSTEM=="block", ENV{ID_BUS}=="usb", ATTR{bdi/max_bytes}="41943040", ATTR{bdi/strict_limit}="1"
 EOF
 
 cat << 'EOF' > /usr/bin/cinnamon-session-cinnamon

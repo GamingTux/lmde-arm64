@@ -40,6 +40,11 @@ if [[ "$ROOT_PART" =~ ^/dev/(mmcblk[0-9]+|nvme[0-9]+n[0-9]+)p([0-9]+)$ ]]; then
 		echo ", +" | sfdisk -N "${PART}" --no-reread "/dev/${DISK}" 2>/dev/null || true
 	fi
 	partx -u "${PART}" "/dev/${DISK}" 2>/dev/null || partprobe "/dev/${DISK}" 2>/dev/null || true
+	if [[ "$ROOT_PART" =~ ^/dev/nvme ]]; then
+		# On fast NVMe drives, enable continuous asynchronous TRIM (discard=async)
+		sed -i 's/\bcommit=60\b/commit=60,discard=async/g' /etc/fstab 2>/dev/null || true
+		mount -o remount,discard=async / 2>/dev/null || true
+	fi
 elif [[ "$ROOT_PART" =~ ^/dev/(sd[a-z]+)([0-9]+)$ ]]; then
 	DISK="${BASH_REMATCH[1]}"
 	PART="${BASH_REMATCH[2]}"
