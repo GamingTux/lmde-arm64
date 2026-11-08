@@ -136,6 +136,85 @@ ConditionUser=!@system
 EOF
 done
 
+# 3. Import Wayland environment into D-Bus and systemd user session on Cinnamon startup
+install -d -m 755 "${ROOTFS_DIR}/usr/libexec" "${ROOTFS_DIR}/etc/xdg/xdg-desktop-portal" "${ROOTFS_DIR}/etc/sysctl.d"
+
+cat << 'EOF' > "${ROOTFS_DIR}/usr/libexec/wayland-env-import.sh"
+#!/bin/bash
+for i in $(seq 1 50); do
+    if [ -S "${XDG_RUNTIME_DIR}/wayland-0" ]; then
+        break
+    fi
+    sleep 0.1
+done
+export WAYLAND_DISPLAY="wayland-0"
+export DISPLAY="${DISPLAY:-:0}"
+export XDG_CURRENT_DESKTOP="X-Cinnamon"
+export XDG_SESSION_TYPE="wayland"
+export XDG_SESSION_DESKTOP="cinnamon-wayland"
+if command -v dbus-update-activation-environment >/dev/null 2>&1; then
+    dbus-update-activation-environment --systemd WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_DESKTOP 2>/dev/null || true
+fi
+if command -v systemctl >/dev/null 2>&1; then
+    systemctl --user import-environment WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_DESKTOP 2>/dev/null || true
+    systemctl --user restart xdg-desktop-portal.service 2>/dev/null || true
+fi
+EOF
+chmod 755 "${ROOTFS_DIR}/usr/libexec/wayland-env-import.sh"
+
+cat << 'EOF' > "${ROOTFS_DIR}/etc/xdg/autostart/wayland-env-import.desktop"
+[Desktop Entry]
+Type=Application
+Name=Wayland Environment Importer
+Comment=Imports WAYLAND_DISPLAY and DISPLAY into D-Bus and systemd user session
+Exec=/usr/libexec/wayland-env-import.sh
+OnlyShowIn=X-Cinnamon;
+NoDisplay=true
+X-GNOME-Autostart-Phase=Initialization
+X-GNOME-Autostart-Notify=false
+X-GNOME-AutoRestart=false
+EOF
+
+# 4. Pure Wayland portal configuration (prevents xdg-desktop-portal 25s timeout)
+cat << 'EOF' > "${ROOTFS_DIR}/etc/xdg/xdg-desktop-portal/portals.conf"
+[preferred]
+default=gtk;xapp;
+org.freedesktop.impl.portal.Secret=gnome-keyring;
+org.freedesktop.impl.portal.Inhibit=none
+org.freedesktop.impl.portal.ScreenSaver=none
+org.freedesktop.impl.portal.Lockdown=none
+EOF
+cp "${ROOTFS_DIR}/etc/xdg/xdg-desktop-portal/portals.conf" "${ROOTFS_DIR}/etc/xdg/xdg-desktop-portal/x-cinnamon-portals.conf"
+
+# 5. Prevent USB flash drive write stalls and buffer bloat
+cat << 'EOF' > "${ROOTFS_DIR}/etc/sysctl.d/99-usb-storage.conf"
+vm.dirty_background_bytes = 16777216
+vm.dirty_bytes = 41943040
+EOF
+
+# 6. Cinnamon session launcher with automatic Wayland background environment sync
+cat << 'EOF' > "${ROOTFS_DIR}/usr/bin/cinnamon-session-cinnamon"
+#!/bin/sh
+if [ "$1" = "--wayland" ]; then
+    (
+        for i in $(seq 1 50); do
+            if [ -S "$XDG_RUNTIME_DIR/wayland-0" ]; then
+                sleep 0.1
+                dbus-update-activation-environment --systemd WAYLAND_DISPLAY=wayland-0 DISPLAY=:0 XDG_CURRENT_DESKTOP=X-Cinnamon XDG_SESSION_TYPE=wayland XDG_SESSION_DESKTOP=cinnamon-wayland 2>/dev/null || true
+                systemctl --user import-environment WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_DESKTOP 2>/dev/null || true
+                systemctl --user restart xdg-desktop-portal 2>/dev/null || true
+                break
+            fi
+            sleep 0.1
+        done
+    ) &
+    exec cinnamon-session --session cinnamon-wayland
+else
+    exec cinnamon-session --session cinnamon "$@"
+fi
+EOF
+chmod 755 "${ROOTFS_DIR}/usr/bin/cinnamon-session-cinnamon"
+
 on_chroot <<- \EOF
 	# Remove any Xorg server packages so the system is 100% pure Wayland (+ XWayland)
 	apt-get purge -y 'xserver-xorg*' 2>/dev/null || true

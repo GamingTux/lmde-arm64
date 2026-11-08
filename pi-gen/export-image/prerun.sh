@@ -91,7 +91,7 @@ if [ -d "${STAGING}/var/cache/apt/archives" ]; then
 fi
 mkfs.btrfs -f -L rootfs "$ROOT_DEV" > /dev/null
 
-mount -v "$ROOT_DEV" "${ROOTFS_DIR}" -t btrfs -o compress=zstd:2,noatime,nodiratime,ssd
+mount -v "$ROOT_DEV" "${ROOTFS_DIR}" -t btrfs -o compress=zstd:1,noatime,nodiratime
 rsync -aHAXx --numeric-ids "${STAGING}/" "${ROOTFS_DIR}/"
 rm -rf "${STAGING}"
 

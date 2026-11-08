@@ -27,7 +27,7 @@ Linux Mint is celebrated for its clean design, stability, and intuitive Cinnamon
 1. **Authentic LMDE 7 Experience:** Ships the official Linux Mint `mint-logo` Plymouth boot splash, official Mint wallpapers (`mint-artwork`), `Mint-Y` themes and icon sets, `debian-system-adjustments`, and the complete Mint XApps & utility suite — without custom theme forks or non-standard kernel/sysctl overrides.
 2. **100% Xorg-Free Pure Wayland Stack:** Built directly around Raspberry Pi's KMS/DRM VideoCore VII driver architecture. Both the LightDM login screen (`pi-greeter-labwc`) and the desktop session (`cinnamon-wayland`) run natively on Wayland, with `xwayland` transparently supporting legacy X11 and administrative tools.
 3. **Dedicated GPG-Signed Cortex-A76 APT Repository:** Over **290+ system, Wayland, multimedia, and Linux Mint source packages** natively compiled for the Raspberry Pi 5's **ARMv8.2-A Cortex-A76** CPU (`-mcpu=cortex-a76+crypto`, 16 KB ELF page alignment, VideoCore VII-pruned Mesa, and PGO-optimized Python 3.13).
-4. **Snapshot-Ready Btrfs + ZRAM Foundation:** Ready-to-flash OS images featuring a **Btrfs** root filesystem with transparent `zstd:2` compression (ideal for instant **Timeshift** snapshots) and Raspberry Pi OS native ZRAM swap.
+4. **Snapshot-Ready Btrfs + ZRAM Foundation:** Ready-to-flash OS images featuring a **Btrfs** root filesystem with transparent `zstd:1` compression (ideal for instant **Timeshift** snapshots) and Raspberry Pi OS native ZRAM swap.
 
 ---
 
@@ -57,7 +57,7 @@ Packages in the `lmde-arm64` repository are compiled natively for the BCM2712's 
 * **SIMD Multimedia:** `ffmpeg`, `dav1d`, `libvpx`, `pixman`, `cairo`, and `pipewire` leverage NEON/DotProd/FP16 `-O3` vectorization for smooth 1080p60 playback.
 
 ### 🗄️ Btrfs Root Filesystem & Native ZRAM
-* **Transparent Compression:** `defaults,compress=zstd:2,noatime,ssd,discard=async` saves flash space, reduces SD/NVMe wear, and enables instantaneous copy-on-write **Timeshift** snapshots.
+* **Transparent Compression:** `defaults,compress=zstd:1,noatime,commit=60` saves flash space, reduces SD/NVMe/USB wear, and enables instantaneous copy-on-write **Timeshift** snapshots without I/O stalls.
 * **Automatic First-Boot Resize:** `btrfs-root-resize.service` automatically expands the Btrfs partition and filesystem to fill your MicroSD card or NVMe SSD on initial boot.
 * **Pure ZRAM Swap:** Uses Raspberry Pi OS's native ZRAM mechanism (`rpi-swap` configured to `Mechanism=zram`), avoiding swap files on flash storage.
 
