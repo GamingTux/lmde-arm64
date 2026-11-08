@@ -83,10 +83,11 @@ gtk-font-name=Ubuntu 11
 EOF
 
 cat << 'EOF' > "${ROOTFS_DIR}/etc/xdg/labwc-greeter/autostart"
-/usr/sbin/pi-greeter &
+env GDK_BACKEND=wayland /usr/sbin/pi-greeter &
 EOF
 
 cat << 'EOF' > "${ROOTFS_DIR}/etc/xdg/labwc-greeter/environment"
+GDK_BACKEND=wayland
 XCURSOR_THEME=Bibata-Modern-Classic
 XCURSOR_SIZE=24
 LABWC_FALLBACK_OUTPUT=NOOP-1
@@ -256,17 +257,9 @@ on_chroot <<- \EOF
 	SWAPCONF
 	rm -f /var/swap /etc/systemd/zram-generator.conf
 
-	# Qt & GTK backend configuration (Xwayland primary for instant app startup without Wayland protocol negotiation stalls)
-	if ! grep -q "QT_QPA_PLATFORM" /etc/environment 2>/dev/null; then
-		echo 'QT_QPA_PLATFORM="xcb;wayland"' >> /etc/environment
-	else
-		sed -i 's/^QT_QPA_PLATFORM=.*/QT_QPA_PLATFORM="xcb;wayland"/' /etc/environment
-	fi
-	if ! grep -q "GDK_BACKEND" /etc/environment 2>/dev/null; then
-		echo 'GDK_BACKEND="x11,wayland"' >> /etc/environment
-	else
-		sed -i 's/^GDK_BACKEND=.*/GDK_BACKEND="x11,wayland"/' /etc/environment
-	fi
+	# Ensure /etc/environment does not contain overrides that could break greeter services
+	sed -i '/^GDK_BACKEND=/d' /etc/environment 2>/dev/null || true
+	sed -i '/^QT_QPA_PLATFORM=/d' /etc/environment 2>/dev/null || true
 	sed -i '/^MOZ_X11_EGL=/d' /etc/environment 2>/dev/null || true
 
 	# PolicyKit rules for Linux Mint Update Manager & Software Manager on Debian Trixie

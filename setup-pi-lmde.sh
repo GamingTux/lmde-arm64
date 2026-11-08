@@ -194,10 +194,11 @@ XKB_VARIANT="$(awk -F'"' '/^XKBVARIANT=/{print $2}' /etc/default/keyboard 2>/dev
 XKB_LAYOUT="${XKB_LAYOUT:-us}"
 
 cat << 'EOF' > /etc/xdg/labwc-greeter/autostart
-/usr/sbin/pi-greeter &
+env GDK_BACKEND=wayland /usr/sbin/pi-greeter &
 EOF
 
 cat << EOF > /etc/xdg/labwc-greeter/environment
+GDK_BACKEND=wayland
 XCURSOR_THEME=Bibata-Modern-Classic
 XCURSOR_SIZE=24
 LABWC_FALLBACK_OUTPUT=NOOP-1
@@ -252,17 +253,9 @@ polkit.addRule(function(action, subject) {
 EOF
 chmod 644 /etc/polkit-1/rules.d/60-aptkit.rules
 
-# Qt & GTK backend configuration (Xwayland primary for instant app startup without Wayland protocol negotiation stalls)
-if ! grep -q "QT_QPA_PLATFORM" /etc/environment 2>/dev/null; then
-    echo 'QT_QPA_PLATFORM="xcb;wayland"' >> /etc/environment
-else
-    sed -i 's/^QT_QPA_PLATFORM=.*/QT_QPA_PLATFORM="xcb;wayland"/' /etc/environment
-fi
-if ! grep -q "GDK_BACKEND" /etc/environment 2>/dev/null; then
-    echo 'GDK_BACKEND="x11,wayland"' >> /etc/environment
-else
-    sed -i 's/^GDK_BACKEND=.*/GDK_BACKEND="x11,wayland"/' /etc/environment
-fi
+# Ensure /etc/environment does not contain overrides that could break greeter services
+sed -i '/^GDK_BACKEND=/d' /etc/environment 2>/dev/null || true
+sed -i '/^QT_QPA_PLATFORM=/d' /etc/environment 2>/dev/null || true
 sed -i '/^MOZ_X11_EGL=/d' /etc/environment 2>/dev/null || true
 
 # Import Wayland environment into D-Bus and systemd user session on Cinnamon startup
