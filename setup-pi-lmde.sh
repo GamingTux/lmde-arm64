@@ -129,12 +129,6 @@ done
 
 export PATH="$PATH:/usr/local/sbin:/usr/sbin:/sbin"
 export GTK_MODULES="${GTK_MODULES:+$GTK_MODULES:}xapp-gtk3-module"
-export GDK_BACKEND="wayland,x11"
-export QT_QPA_PLATFORM="wayland;xcb"
-export CLUTTER_BACKEND="wayland"
-export SDL_VIDEODRIVER="wayland,x11"
-export WAYLAND_DISPLAY="wayland-0"
-export DISPLAY="${DISPLAY:-:0}"
 export XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-wayland}"
 export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-X-Cinnamon}"
 export XDG_SESSION_DESKTOP="${XDG_SESSION_DESKTOP:-cinnamon-wayland}"
@@ -149,10 +143,7 @@ else
 fi
 
 if command -v dbus-update-activation-environment >/dev/null 2>&1; then
-    dbus-update-activation-environment --systemd WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_DESKTOP GDK_BACKEND QT_QPA_PLATFORM 2>/dev/null || true
-fi
-if command -v systemctl >/dev/null 2>&1; then
-    systemctl --user import-environment WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_DESKTOP GDK_BACKEND QT_QPA_PLATFORM 2>/dev/null || true
+    dbus-update-activation-environment --systemd --all 2>/dev/null || true
 fi
 
 # LightDM passes the entire desktop file Exec string as a single argument ($1).
@@ -194,11 +185,10 @@ XKB_VARIANT="$(awk -F'"' '/^XKBVARIANT=/{print $2}' /etc/default/keyboard 2>/dev
 XKB_LAYOUT="${XKB_LAYOUT:-us}"
 
 cat << 'EOF' > /etc/xdg/labwc-greeter/autostart
-env GDK_BACKEND=wayland /usr/sbin/pi-greeter &
+/usr/sbin/pi-greeter &
 EOF
 
 cat << EOF > /etc/xdg/labwc-greeter/environment
-GDK_BACKEND=wayland
 XCURSOR_THEME=Bibata-Modern-Classic
 XCURSOR_SIZE=24
 LABWC_FALLBACK_OUTPUT=NOOP-1
@@ -258,57 +248,6 @@ sed -i '/^GDK_BACKEND=/d' /etc/environment 2>/dev/null || true
 sed -i '/^QT_QPA_PLATFORM=/d' /etc/environment 2>/dev/null || true
 sed -i '/^MOZ_X11_EGL=/d' /etc/environment 2>/dev/null || true
 
-# Import Wayland environment into D-Bus and systemd user session on Cinnamon startup
-install -d -m 755 /usr/libexec /etc/xdg/xdg-desktop-portal /etc/sysctl.d
-
-cat << 'EOF' > /usr/libexec/wayland-env-import.sh
-#!/bin/bash
-for i in $(seq 1 50); do
-    if [ -S "${XDG_RUNTIME_DIR}/wayland-0" ]; then
-        break
-    fi
-    sleep 0.1
-done
-export WAYLAND_DISPLAY="wayland-0"
-export DISPLAY="${DISPLAY:-:0}"
-export XDG_CURRENT_DESKTOP="X-Cinnamon"
-export XDG_SESSION_TYPE="wayland"
-export XDG_SESSION_DESKTOP="cinnamon-wayland"
-export GDK_BACKEND="wayland,x11"
-export QT_QPA_PLATFORM="wayland;xcb"
-if command -v dbus-update-activation-environment >/dev/null 2>&1; then
-    dbus-update-activation-environment --systemd WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_DESKTOP GDK_BACKEND QT_QPA_PLATFORM 2>/dev/null || true
-fi
-if command -v systemctl >/dev/null 2>&1; then
-    systemctl --user import-environment WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_DESKTOP GDK_BACKEND QT_QPA_PLATFORM 2>/dev/null || true
-fi
-EOF
-chmod 755 /usr/libexec/wayland-env-import.sh
-
-cat << 'EOF' > /etc/xdg/autostart/wayland-env-import.desktop
-[Desktop Entry]
-Type=Application
-Name=Wayland Environment Importer
-Comment=Imports WAYLAND_DISPLAY and DISPLAY into D-Bus and systemd user session
-Exec=/usr/libexec/wayland-env-import.sh
-OnlyShowIn=X-Cinnamon;
-NoDisplay=true
-X-GNOME-Autostart-Phase=Initialization
-X-GNOME-Autostart-Notify=false
-X-GNOME-AutoRestart=false
-EOF
-
-cat << 'EOF' > /etc/xdg/xdg-desktop-portal/portals.conf
-[preferred]
-default=gtk;xapp;
-org.freedesktop.impl.portal.Secret=gnome-keyring;
-org.freedesktop.impl.portal.Inhibit=none
-org.freedesktop.impl.portal.ScreenSaver=none
-org.freedesktop.impl.portal.Lockdown=none
-org.freedesktop.impl.portal.Wallpaper=none
-EOF
-cp /etc/xdg/xdg-desktop-portal/portals.conf /etc/xdg/xdg-desktop-portal/x-cinnamon-portals.conf
-
 # Prevent USB flash drive write stalls specifically without restricting NVMe SSD throughput
 install -d -m 755 /etc/udev/rules.d
 cat << 'EOF' > /etc/udev/rules.d/99-usb-dirty-bytes.rules
@@ -316,26 +255,6 @@ cat << 'EOF' > /etc/udev/rules.d/99-usb-dirty-bytes.rules
 # while leaving fast NVMe / PCIe SSDs at full unthrottled kernel write cache speed.
 ACTION=="add|change", SUBSYSTEM=="block", ENV{ID_BUS}=="usb", ATTR{bdi/max_bytes}="41943040", ATTR{bdi/strict_limit}="1"
 EOF
-
-cat << 'EOF' > /usr/bin/cinnamon-session-cinnamon
-#!/bin/sh
-if [ "$1" = "--wayland" ]; then
-    (
-        for i in $(seq 1 50); do
-            if [ -S "$XDG_RUNTIME_DIR/wayland-0" ]; then
-                dbus-update-activation-environment --systemd WAYLAND_DISPLAY=wayland-0 DISPLAY=:0 XDG_CURRENT_DESKTOP=X-Cinnamon XDG_SESSION_TYPE=wayland XDG_SESSION_DESKTOP=cinnamon-wayland GDK_BACKEND=wayland,x11 QT_QPA_PLATFORM=wayland;xcb 2>/dev/null || true
-                systemctl --user import-environment WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_DESKTOP GDK_BACKEND QT_QPA_PLATFORM 2>/dev/null || true
-                break
-            fi
-            sleep 0.1
-        done
-    ) &
-    exec cinnamon-session --session cinnamon-wayland
-else
-    exec cinnamon-session --session cinnamon "$@"
-fi
-EOF
-chmod 755 /usr/bin/cinnamon-session-cinnamon
 
 for f in \
   /usr/share/xsessions/cinnamon.desktop \
