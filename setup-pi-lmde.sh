@@ -129,10 +129,10 @@ done
 
 export PATH="$PATH:/usr/local/sbin:/usr/sbin:/sbin"
 export GTK_MODULES="${GTK_MODULES:+$GTK_MODULES:}xapp-gtk3-module"
-export GDK_BACKEND="x11,wayland"
-export QT_QPA_PLATFORM="xcb;wayland"
-export CLUTTER_BACKEND="x11"
-export SDL_VIDEODRIVER="x11,wayland"
+export GDK_BACKEND="wayland,x11"
+export QT_QPA_PLATFORM="wayland;xcb"
+export CLUTTER_BACKEND="wayland"
+export SDL_VIDEODRIVER="wayland,x11"
 export WAYLAND_DISPLAY="wayland-0"
 export DISPLAY="${DISPLAY:-:0}"
 export XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-wayland}"
@@ -274,8 +274,8 @@ export DISPLAY="${DISPLAY:-:0}"
 export XDG_CURRENT_DESKTOP="X-Cinnamon"
 export XDG_SESSION_TYPE="wayland"
 export XDG_SESSION_DESKTOP="cinnamon-wayland"
-export GDK_BACKEND="x11,wayland"
-export QT_QPA_PLATFORM="xcb;wayland"
+export GDK_BACKEND="wayland,x11"
+export QT_QPA_PLATFORM="wayland;xcb"
 if command -v dbus-update-activation-environment >/dev/null 2>&1; then
     dbus-update-activation-environment --systemd WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_DESKTOP GDK_BACKEND QT_QPA_PLATFORM 2>/dev/null || true
 fi
@@ -323,7 +323,7 @@ if [ "$1" = "--wayland" ]; then
     (
         for i in $(seq 1 50); do
             if [ -S "$XDG_RUNTIME_DIR/wayland-0" ]; then
-                dbus-update-activation-environment --systemd WAYLAND_DISPLAY=wayland-0 DISPLAY=:0 XDG_CURRENT_DESKTOP=X-Cinnamon XDG_SESSION_TYPE=wayland XDG_SESSION_DESKTOP=cinnamon-wayland GDK_BACKEND=x11,wayland QT_QPA_PLATFORM=xcb;wayland 2>/dev/null || true
+                dbus-update-activation-environment --systemd WAYLAND_DISPLAY=wayland-0 DISPLAY=:0 XDG_CURRENT_DESKTOP=X-Cinnamon XDG_SESSION_TYPE=wayland XDG_SESSION_DESKTOP=cinnamon-wayland GDK_BACKEND=wayland,x11 QT_QPA_PLATFORM=wayland;xcb 2>/dev/null || true
                 systemctl --user import-environment WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_DESKTOP GDK_BACKEND QT_QPA_PLATFORM 2>/dev/null || true
                 break
             fi
