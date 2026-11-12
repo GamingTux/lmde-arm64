@@ -485,37 +485,21 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
     QUERY_PKG="mint-info"
   fi
 
-  IS_MINT_GIT=0
-  case "$pkg" in
-    cinnamon-desktop|cinnamon-menus|muffin|cinnamon-settings-daemon|cinnamon-session|cinnamon-control-center|cinnamon-screensaver|cinnamon|nemo|xapp|xdg-desktop-portal-xapp)
-      IS_MINT_GIT=1
-      MINT_GIT_BRANCH="master.lmde7"
-      MINT_GIT_URL="https://github.com/linuxmint/${pkg}.git"
-      ;;
-  esac
-
-  if [[ "$IS_MINT_GIT" -eq 1 ]]; then
-    # Version direkt aus debian/changelog des Upstream master.lmde7 Tags beziehen
-    UPSTREAM_VER="$(curl -sf "https://raw.githubusercontent.com/linuxmint/${pkg}/${MINT_GIT_BRANCH}/debian/changelog" 2>/dev/null | head -n 1 | sed -n 's/.*(\(.*\)).*/\1/p' || true)"
-    SRC_NAME="$pkg"
-    ALLOWED_SOURCES+=("$pkg" "$QUERY_PKG" "$SRC_NAME")
-  else
-    UPSTREAM_VER=""
-    for v in $(apt-cache showsrc "$QUERY_PKG" 2>/dev/null | awk '/^Version:/ {print $2}'); do
-      if [[ "$v" == *"~bpo"* && "$v" != *"rpt"* ]]; then
-        if ! grep -Fq "Version: $v" /var/lib/apt/lists/*raspberrypi*_Sources /var/lib/apt/lists/*linuxmint*_Sources 2>/dev/null; then
-          continue
-        fi
+  UPSTREAM_VER=""
+  for v in $(apt-cache showsrc "$QUERY_PKG" 2>/dev/null | awk '/^Version:/ {print $2}'); do
+    if [[ "$v" == *"~bpo"* && "$v" != *"rpt"* ]]; then
+      if ! grep -Fq "Version: $v" /var/lib/apt/lists/*raspberrypi*_Sources /var/lib/apt/lists/*linuxmint*_Sources 2>/dev/null; then
+        continue
       fi
-      if [[ -z "$UPSTREAM_VER" ]] || dpkg --compare-versions "$v" gt "$UPSTREAM_VER"; then
-        UPSTREAM_VER="$v"
-      fi
-    done
+    fi
+    if [[ -z "$UPSTREAM_VER" ]] || dpkg --compare-versions "$v" gt "$UPSTREAM_VER"; then
+      UPSTREAM_VER="$v"
+    fi
+  done
 
-    SRC_NAME="$(apt-cache showsrc "$QUERY_PKG" 2>/dev/null | awk '/^Package:/ {print $2; exit}')"
-    [[ -z "$SRC_NAME" ]] && SRC_NAME="$QUERY_PKG"
-    ALLOWED_SOURCES+=("$pkg" "$QUERY_PKG" "$SRC_NAME")
-  fi
+  SRC_NAME="$(apt-cache showsrc "$QUERY_PKG" 2>/dev/null | awk '/^Package:/ {print $2; exit}')"
+  [[ -z "$SRC_NAME" ]] && SRC_NAME="$QUERY_PKG"
+  ALLOWED_SOURCES+=("$pkg" "$QUERY_PKG" "$SRC_NAME")
 
   if [[ -z "$UPSTREAM_VER" ]]; then
     DURATION=$(( $(date +%s) - PKG_START_TIME ))
@@ -627,16 +611,8 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
   mkdir -p "/tmp/build/$pkg"
   cd "/tmp/build/$pkg"
 
-  if [[ "$IS_MINT_GIT" -eq 1 ]]; then
-    echo "   📦 Klone ${pkg} (${MINT_GIT_BRANCH}) von ${MINT_GIT_URL}..." >> "$LOG_FILE"
-    if ! git clone --depth 1 --branch "$MINT_GIT_BRANCH" "$MINT_GIT_URL" "$pkg" >> "$LOG_FILE" 2>&1; then
-      echo "FEHLER: Konnte ${pkg} nicht von ${MINT_GIT_URL} klonen!" >> "$LOG_FILE"
-      STEP_OK=0
-    fi
-  else
-    if ! (apt-get source "${SRC_NAME}=${UPSTREAM_VER}" < /dev/null >> "$LOG_FILE" 2>&1 || apt-get source "$QUERY_PKG" < /dev/null >> "$LOG_FILE" 2>&1); then
-      STEP_OK=0
-    fi
+  if ! (apt-get source "${SRC_NAME}=${UPSTREAM_VER}" < /dev/null >> "$LOG_FILE" 2>&1 || apt-get source "$QUERY_PKG" < /dev/null >> "$LOG_FILE" 2>&1); then
+    STEP_OK=0
   fi
 
   SRC_DIR="$(find "/tmp/build/$pkg" -mindepth 1 -maxdepth 1 -type d | head -n 1)"

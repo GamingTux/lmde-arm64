@@ -6,10 +6,9 @@ rm -rf "${ROOTFS_DIR}/etc/X11/xorg.conf.d/99-v3d.conf" \
        "${ROOTFS_DIR}/etc/X11/xorg.conf.d/40-libinput-touchpad.conf" \
        "${ROOTFS_DIR}/etc/lightdm/lightdm.conf.d/90-slick-greeter.conf"
 
-# 1. Pure Wayland LightDM Session Wrapper & Greeter Configuration (LMDE Mint-Y styled)
+# 1. LightDM Wayland Session Wrapper & Greeter Configuration (LMDE Mint-Y styled)
 install -d -m 755 "${ROOTFS_DIR}/usr/sbin" \
                   "${ROOTFS_DIR}/etc/lightdm/lightdm.conf.d" \
-                  "${ROOTFS_DIR}/etc/xdg/labwc-greeter" \
                   "${ROOTFS_DIR}/etc/xdg/autostart"
 
 cat << 'EOF' > "${ROOTFS_DIR}/usr/sbin/lightdm-wayland-session"
@@ -50,66 +49,10 @@ fi
 EOF
 chmod 755 "${ROOTFS_DIR}/usr/sbin/lightdm-wayland-session"
 
-cat << 'EOF' > "${ROOTFS_DIR}/etc/lightdm/lightdm.conf.d/90-lmde-wayland.conf"
+cat << 'EOF' > "${ROOTFS_DIR}/etc/lightdm/lightdm.conf.d/70-linuxmint.conf"
 [SeatDefaults]
-user-session=cinnamon-wayland
-
-[Seat:*]
-greeter-session=pi-greeter-labwc
-user-session=cinnamon-wayland
-autologin-session=cinnamon-wayland
-session-wrapper=/usr/sbin/lightdm-wayland-session
-greeter-hide-users=false
-EOF
-
-cat << 'EOF' > "${ROOTFS_DIR}/etc/lightdm/pi-greeter.conf"
-[greeter]
-default-user-image=/usr/share/icons/hicolor/scalable/apps/linuxmint-logo-ring.svg
-desktop_bg=#2f2f2f
-wallpaper=/usr/share/backgrounds/linuxmint/default_background.jpg
-wallpaper_mode=crop
-gtk-theme-name=Mint-Y-Aqua
-gtk-icon-theme-name=Mint-Y-Sand
-gtk-font-name=Ubuntu 11
-EOF
-
-cat << 'EOF' > "${ROOTFS_DIR}/etc/xdg/labwc-greeter/autostart"
-/usr/sbin/pi-greeter &
-EOF
-
-cat << 'EOF' > "${ROOTFS_DIR}/etc/xdg/labwc-greeter/environment"
-XCURSOR_THEME=Bibata-Modern-Classic
-XCURSOR_SIZE=24
-LABWC_FALLBACK_OUTPUT=NOOP-1
-XKB_DEFAULT_MODEL=pc105
-XKB_DEFAULT_LAYOUT=us
-XKB_DEFAULT_VARIANT=
-XKB_DEFAULT_OPTIONS=
-EOF
-
-cat << 'EOF' > "${ROOTFS_DIR}/etc/xdg/labwc-greeter/rc.xml"
-<?xml version="1.0" encoding="UTF-8"?>
-<openbox_config xmlns="http://openbox.org/3.4/rc">
-  <theme>
-    <name>Mint-Y-Aqua</name>
-    <cornerRadius>6</cornerRadius>
-    <font place="ActiveWindow">
-      <name>Ubuntu</name>
-      <size>11</size>
-      <weight>Normal</weight>
-      <slant>Normal</slant>
-    </font>
-    <font place="InactiveWindow">
-      <name>Ubuntu</name>
-      <size>11</size>
-      <weight>Normal</weight>
-      <slant>Normal</slant>
-    </font>
-  </theme>
-  <keyboard>
-    <numlock>off</numlock>
-  </keyboard>
-</openbox_config>
+greeter-session=slick-greeter
+user-session=cinnamon
 EOF
 
 # Allow administrative GUI apps (Timeshift, Synaptic, GParted, MintSources) via XWayland
@@ -140,14 +83,24 @@ ACTION=="add|change", SUBSYSTEM=="block", ENV{ID_BUS}=="usb", ATTR{bdi/max_bytes
 EOF
 
 on_chroot <<- \EOF
-	# Remove any Xorg server packages so the system is 100% pure Wayland (+ XWayland)
-	apt-get purge -y 'xserver-xorg*' 2>/dev/null || true
-	apt-get autoremove -y --purge 2>/dev/null || true
+	# Ensure Xorg modesetting configuration for vc4 on Raspberry Pi
+	install -d -m 755 /etc/X11/xorg.conf.d
+	cat << 'XCONF' > /etc/X11/xorg.conf.d/99-vc4.conf
+Section "OutputClass"
+    Identifier "vc4"
+    MatchDriver "vc4"
+    Driver "modesetting"
+    Option "PrimaryGPU" "true"
+EndSection
+XCONF
 
-	# Hide X11 sessions and standalone labwc session cleanly across upgrades; keep only cinnamon-wayland
+	# Ensure Cinnamon Wayland is an option in /usr/share/wayland-sessions
+	if [ -f /usr/share/wayland-sessions/cinnamon-wayland.desktop ]; then
+		sed -i 's|^Exec=.*|Exec=/usr/sbin/lightdm-wayland-session cinnamon-session-cinnamon --wayland|' /usr/share/wayland-sessions/cinnamon-wayland.desktop
+	fi
+
+	# Hide unwanted fallback sessions across upgrades; keep Cinnamon X11 and Cinnamon Wayland
 	for f in \
-		/usr/share/xsessions/cinnamon.desktop \
-		/usr/share/xsessions/cinnamon2d.desktop \
 		/usr/share/xsessions/lightdm-xsession.desktop \
 		/usr/share/xsessions/openbox.desktop \
 		/usr/share/wayland-sessions/labwc.desktop; do
@@ -174,10 +127,12 @@ on_chroot <<- \EOF
 	SWAPCONF
 	rm -f /var/swap /etc/systemd/zram-generator.conf
 
-	# Ensure /etc/environment does not contain overrides that could break greeter services
+	# Ensure /etc/environment does not contain overrides that could break desktop sessions
 	sed -i '/^GDK_BACKEND=/d' /etc/environment 2>/dev/null || true
 	sed -i '/^QT_QPA_PLATFORM=/d' /etc/environment 2>/dev/null || true
 	sed -i '/^MOZ_X11_EGL=/d' /etc/environment 2>/dev/null || true
+	sed -i '/^MOZ_ENABLE_WAYLAND=/d' /etc/environment 2>/dev/null || true
+	sed -i '/^CLUTTER_BACKEND=/d' /etc/environment 2>/dev/null || true
 
 	# PolicyKit rules for Linux Mint Update Manager & Software Manager on Debian Trixie
 	install -d -m 755 /etc/polkit-1/rules.d

@@ -22,8 +22,11 @@ nemo-preview
 nemo-share
 nemo-image-converter
 lightdm
-pi-greeter
-labwc
+slick-greeter
+lightdm-settings
+xserver-xorg
+xserver-xorg-core
+xserver-xorg-input-libinput
 xwayland
 x11-xserver-utils
 xdg-desktop-portal-xapp

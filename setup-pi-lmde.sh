@@ -58,15 +58,18 @@ Pin: origin "packages.linuxmint.com"
 Pin-Priority: 700
 EOF
 
-echo ">>> [5/6] Installing LMDE 7 (Cinnamon Wayland) desktop & official Mint tools..."
+echo ">>> [5/6] Installing standard LMDE 7 Cinnamon desktop & official Mint tools..."
 apt-get update && apt-get full-upgrade -y
 apt-get install -y \
   cinnamon \
   muffin \
   nemo \
   lightdm \
-  pi-greeter \
-  labwc \
+  slick-greeter \
+  lightdm-settings \
+  xserver-xorg \
+  xserver-xorg-core \
+  xserver-xorg-input-libinput \
   xwayland \
   x11-xserver-utils \
   debian-system-adjustments \
@@ -110,17 +113,30 @@ apt-get install -y \
   ffmpegthumbnailer \
   fastfetch \
   plymouth \
-  plymouth-themes
+  plymouth-themes \
+  xserver-xorg \
+  xserver-xorg-core \
+  xserver-xorg-input-libinput \
+  slick-greeter \
+  lightdm-settings
 
-apt-get purge -y 'xserver-xorg*' slick-greeter 2>/dev/null || true
-apt-get autoremove -y --purge 2>/dev/null || true
+# Ensure Xorg uses modesetting driver for vc4 on Raspberry Pi
+install -d -m 755 /etc/X11/xorg.conf.d
+cat << 'EOF' > /etc/X11/xorg.conf.d/99-vc4.conf
+Section "OutputClass"
+    Identifier "vc4"
+    MatchDriver "vc4"
+    Driver "modesetting"
+    Option "PrimaryGPU" "true"
+EndSection
+EOF
 
-echo ">>> [6/6] Configuring pure Wayland LightDM session & official LMDE Plymouth bootscreen..."
-install -d -m 755 /usr/sbin /etc/lightdm/lightdm.conf.d /etc/xdg/labwc-greeter /etc/xdg/autostart /etc/polkit-1/rules.d
+echo ">>> [6/6] Configuring standard LMDE Cinnamon X11 session & official bootscreen..."
+install -d -m 755 /usr/sbin /etc/lightdm/lightdm.conf.d /etc/xdg/autostart /etc/polkit-1/rules.d
 
 cat << 'EOF' > /usr/sbin/lightdm-wayland-session
 #!/bin/bash
-# Pure Wayland session wrapper for LightDM (replaces X11-only /etc/X11/Xsession)
+# Wayland session wrapper for LightDM (used when Cinnamon Wayland option is selected)
 for file in /etc/profile "$HOME/.profile"; do
     if [ -f "$file" ]; then
         . "$file"
@@ -147,7 +163,6 @@ if command -v dbus-update-activation-environment >/dev/null 2>&1; then
 fi
 
 # LightDM passes the entire desktop file Exec string as a single argument ($1).
-# Using eval exec ensures word-splitting occurs so arguments (--wayland, etc.) are parsed.
 if [ $# -gt 0 ]; then
     eval exec "$@"
 else
@@ -156,71 +171,17 @@ fi
 EOF
 chmod 755 /usr/sbin/lightdm-wayland-session
 
-rm -f /etc/lightdm/lightdm.conf.d/90-slick-greeter.conf
-cat << 'EOF' > /etc/lightdm/lightdm.conf.d/90-lmde-wayland.conf
+# Ensure Cinnamon Wayland is an option in /usr/share/wayland-sessions
+if [ -f /usr/share/wayland-sessions/cinnamon-wayland.desktop ]; then
+    sed -i 's|^Exec=.*|Exec=/usr/sbin/lightdm-wayland-session cinnamon-session-cinnamon --wayland|' /usr/share/wayland-sessions/cinnamon-wayland.desktop
+fi
+
+# Standard Linux Mint LightDM configuration (X11 default with slick-greeter)
+rm -f /etc/lightdm/lightdm.conf.d/90-lmde-wayland.conf
+cat << 'EOF' > /etc/lightdm/lightdm.conf.d/70-linuxmint.conf
 [SeatDefaults]
-user-session=cinnamon-wayland
-
-[Seat:*]
-greeter-session=pi-greeter-labwc
-user-session=cinnamon-wayland
-autologin-session=cinnamon-wayland
-session-wrapper=/usr/sbin/lightdm-wayland-session
-greeter-hide-users=false
-EOF
-
-cat << 'EOF' > /etc/lightdm/pi-greeter.conf
-[greeter]
-default-user-image=/usr/share/icons/hicolor/scalable/apps/linuxmint-logo-ring.svg
-desktop_bg=#2f2f2f
-wallpaper=/usr/share/backgrounds/linuxmint/default_background.jpg
-wallpaper_mode=crop
-gtk-theme-name=Mint-Y-Aqua
-gtk-icon-theme-name=Mint-Y-Sand
-gtk-font-name=Ubuntu 11
-EOF
-
-XKB_LAYOUT="$(awk -F'"' '/^XKBLAYOUT=/{print $2}' /etc/default/keyboard 2>/dev/null || true)"
-XKB_VARIANT="$(awk -F'"' '/^XKBVARIANT=/{print $2}' /etc/default/keyboard 2>/dev/null || true)"
-XKB_LAYOUT="${XKB_LAYOUT:-us}"
-
-cat << 'EOF' > /etc/xdg/labwc-greeter/autostart
-/usr/sbin/pi-greeter &
-EOF
-
-cat << EOF > /etc/xdg/labwc-greeter/environment
-XCURSOR_THEME=Bibata-Modern-Classic
-XCURSOR_SIZE=24
-LABWC_FALLBACK_OUTPUT=NOOP-1
-XKB_DEFAULT_MODEL=pc105
-XKB_DEFAULT_LAYOUT=${XKB_LAYOUT}
-XKB_DEFAULT_VARIANT=${XKB_VARIANT}
-XKB_DEFAULT_OPTIONS=
-EOF
-
-cat << 'EOF' > /etc/xdg/labwc-greeter/rc.xml
-<?xml version="1.0" encoding="UTF-8"?>
-<openbox_config xmlns="http://openbox.org/3.4/rc">
-  <theme>
-    <name>Mint-Y-Aqua</name>
-    <cornerRadius>6</cornerRadius>
-    <font place="ActiveWindow">
-      <name>Ubuntu</name>
-      <size>11</size>
-      <weight>Normal</weight>
-      <slant>Normal</slant>
-    </font>
-    <font place="InactiveWindow">
-      <name>Ubuntu</name>
-      <size>11</size>
-      <weight>Normal</weight>
-      <slant>Normal</slant>
-    </font>
-  </theme>
-  <keyboard>
-    <numlock>off</numlock>
-  </keyboard>
-</openbox_config>
+greeter-session=slick-greeter
+user-session=cinnamon
 EOF
 
 cat << 'EOF' > /etc/xdg/autostart/xwayland-root-xhost.desktop
@@ -243,10 +204,12 @@ polkit.addRule(function(action, subject) {
 EOF
 chmod 644 /etc/polkit-1/rules.d/60-aptkit.rules
 
-# Ensure /etc/environment does not contain overrides that could break greeter services
+# Ensure /etc/environment does not contain overrides that could break desktop sessions
 sed -i '/^GDK_BACKEND=/d' /etc/environment 2>/dev/null || true
 sed -i '/^QT_QPA_PLATFORM=/d' /etc/environment 2>/dev/null || true
 sed -i '/^MOZ_X11_EGL=/d' /etc/environment 2>/dev/null || true
+sed -i '/^MOZ_ENABLE_WAYLAND=/d' /etc/environment 2>/dev/null || true
+sed -i '/^CLUTTER_BACKEND=/d' /etc/environment 2>/dev/null || true
 
 # Prevent USB flash drive write stalls specifically without restricting NVMe SSD throughput
 install -d -m 755 /etc/udev/rules.d
@@ -257,8 +220,6 @@ ACTION=="add|change", SUBSYSTEM=="block", ENV{ID_BUS}=="usb", ATTR{bdi/max_bytes
 EOF
 
 for f in \
-  /usr/share/xsessions/cinnamon.desktop \
-  /usr/share/xsessions/cinnamon2d.desktop \
   /usr/share/xsessions/lightdm-xsession.desktop \
   /usr/share/xsessions/openbox.desktop \
   /usr/share/wayland-sessions/labwc.desktop; do
