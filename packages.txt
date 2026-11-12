@@ -159,10 +159,7 @@ pixman
 graphene
 cogl
 clutter-1.0
-wlroots
-labwc
 lightdm
-pi-greeter
 xwayland
 libsdl2
 
@@ -315,3 +312,5 @@ gparted
 synaptic
 mint-info
 fcitx
+slick-greeter
+touchegg

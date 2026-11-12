@@ -24,6 +24,7 @@ nemo-image-converter
 lightdm
 slick-greeter
 lightdm-settings
+touchegg
 xserver-xorg
 xserver-xorg-core
 xserver-xorg-input-libinput

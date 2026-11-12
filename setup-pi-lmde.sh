@@ -67,6 +67,7 @@ apt-get install -y \
   lightdm \
   slick-greeter \
   lightdm-settings \
+  touchegg \
   xserver-xorg \
   xserver-xorg-core \
   xserver-xorg-input-libinput \

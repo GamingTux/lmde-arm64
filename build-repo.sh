@@ -100,7 +100,6 @@ rm -f "$REPO_DIR"/pool/main/*dbgsym*.deb \
       "$REPO_DIR"/pool/main/rpi-fake-sleep*.deb \
       "$REPO_DIR"/pool/main/cm5-mmc-fix*.deb \
       "$REPO_DIR"/pool/main/*-theme_*+pi5_all.deb \
-      "$REPO_DIR"/pool/main/slick-greeter*.deb \
       "$REPO_DIR"/pool/main/xserver-xorg*.deb \
       "$REPO_DIR"/pool/main/xserver-common*.deb \
       "$REPO_DIR"/pool/main/xnest*.deb \
@@ -207,11 +206,11 @@ if os.path.exists(target_file):
         if cleaned:
             known.add(cleaned)
 
-# Paket-Ausschlüsse: Browser (Pi-OS-Repo), x86-Proprietär, obsolete Alt-Pakete, Debian-gepflegt oder X11-only (slick-greeter)
+# Paket-Ausschlüsse: Browser (Pi-OS-Repo), x86-Proprietär, obsolete Alt-Pakete
 ignore = {
     "firefox", "chromium", "nemo-dropbox",
     "mint-info-debian", "mint-meta-debian",
-    "onboard", "slick-greeter"
+    "onboard"
 }
 
 discovered = []
