@@ -3,8 +3,7 @@
 # Gebaut mit -mcpu=cortex-a76+crypto -O3 + Graphite + LTO + 16K Page-Alignment
 # ==============================================================================
 
-# --- 1. C-Standardbibliothek, Kompression, Prüfsummen, Archive & Dateisysteme ---
-glibc
+# --- 1. Kompression, Prüfsummen, Archive & Dateisysteme ---
 zlib
 lz4
 libzstd
@@ -153,7 +152,6 @@ vulkan-volk
 glslang
 spirv-tools
 shaderc
-mesa
 libepoxy
 pixman
 graphene
@@ -213,10 +211,7 @@ zimg
 libass
 libplacebo
 v4l-utils
-libpisp
 kms++
-libcamera
-rpicam-apps
 
 # --- 7. Audio-Codecs, DSP, FFT, Resampling & PipeWire-Stack (+rpt) ---
 libogg
@@ -243,7 +238,6 @@ libebur128
 alsa-lib
 alsa-utils
 pulseaudio
-pipewire
 wireplumber
 
 # --- 8. GStreamer-Stack (+rpt), Multimedia-Player, GTK-Toolkits & Python 3.13 (mit PGO) ---

@@ -189,6 +189,7 @@ fi
 
 # Zu Beginn sofort den Index aus allen vorhandenen .deb-Dateien in pool/main synchronisieren
 update_local_apt_repo
+apt-get dist-upgrade -y --allow-downgrades >/dev/null 2>&1 || true
 
 BUILD_QUEUE="/tmp/build_queue.txt"
 cp -f "$ROOT_DIR/packages.txt" "$BUILD_QUEUE"
@@ -573,37 +574,6 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
 
   echo "[$(date -u '+%H:%M:%S')] 🚀 [$CURRENT/$TOTAL] Starte $pkg ($UPSTREAM_VER) [Flags: $OPT_LEVEL]..."
 
-  # Alte .deb-Dateien dieses Quellpakets aus ./repo/pool/main/ löschen
-  if [[ -s "$PACKAGES_FILE" ]]; then
-    while IFS= read -r old_rel; do
-      [[ -n "$old_rel" ]] && rm -f "$REPO_DIR/$old_rel"
-    done < <(awk -v pkg="$pkg" -v qpkg="$QUERY_PKG" -v src="$SRC_NAME" '
-      BEGIN { RS=""; FS="\n" }
-      {
-        p=""; s=""; fn=""
-        for (i=1; i<=NF; i++) {
-          if ($i ~ /^Package: /) { p = substr($i, 10) }
-          else if ($i ~ /^Source: /) { s = substr($i, 9); sub(/ .*/, "", s) }
-          else if ($i ~ /^Filename: /) { fn = substr($i, 11) }
-        }
-        if (s == "") s = p
-        if ((s == pkg || s == qpkg || s == src || p == pkg || p == qpkg) && fn != "") {
-          print fn
-        }
-      }
-    ' "$PACKAGES_FILE")
-  fi
-
-  for deb in "$REPO_DIR"/pool/main/*.deb; do
-    [[ -e "$deb" ]] || continue
-    deb_src="$(dpkg-deb -f "$deb" Source 2>/dev/null | awk '{print $1}' || true)"
-    deb_pkg="$(dpkg-deb -f "$deb" Package 2>/dev/null || true)"
-    [[ -z "$deb_src" ]] && deb_src="$deb_pkg"
-    if [[ "$deb_src" == "$pkg" || "$deb_src" == "$QUERY_PKG" || "$deb_src" == "$SRC_NAME" || "$deb_pkg" == "$pkg" || "$deb_pkg" == "$QUERY_PKG" ]]; then
-      rm -f "$deb"
-    fi
-  done
-
   # Quellcode laden, patchen und Build-Abhängigkeiten installieren
   STEP_OK=1
   rm -rf "/tmp/build/$pkg"
@@ -667,7 +637,7 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
   fi
 
   if [[ "$STEP_OK" -eq 1 ]]; then
-    if ! (apt-get build-dep -y --allow-downgrades -P "${DEB_BUILD_PROFILES// /,}" ./ < /dev/null >> "$LOG_FILE" 2>&1 || apt-get build-dep -y --allow-downgrades -t trixie-backports -P "${DEB_BUILD_PROFILES// /,}" ./ < /dev/null >> "$LOG_FILE" 2>&1); then
+    if ! (apt-get build-dep -y --no-install-recommends --allow-downgrades -P "${DEB_BUILD_PROFILES// /,}" ./ < /dev/null >> "$LOG_FILE" 2>&1 || apt-get build-dep -y --no-install-recommends --allow-downgrades -t trixie-backports -P "${DEB_BUILD_PROFILES// /,}" ./ < /dev/null >> "$LOG_FILE" 2>&1); then
       STEP_OK=0
     fi
   fi
@@ -731,6 +701,16 @@ while IFS= read -r -u 3 line || [[ -n "$line" ]]; do
           ../locales-all_*.deb \
           ../nscd_*.deb
     if compgen -G "../*.deb" > /dev/null; then
+      # Alte .deb-Dateien dieses Quellpakets erst JETZT aus ./repo/pool/main/ entfernen, da der Neubau erfolgreich war
+      for deb in "$REPO_DIR"/pool/main/*.deb; do
+        [[ -e "$deb" ]] || continue
+        deb_src="$(dpkg-deb -f "$deb" Source 2>/dev/null | awk '{print $1}' || true)"
+        deb_pkg="$(dpkg-deb -f "$deb" Package 2>/dev/null || true)"
+        [[ -z "$deb_src" ]] && deb_src="$deb_pkg"
+        if [[ "$deb_src" == "$pkg" || "$deb_src" == "$QUERY_PKG" || "$deb_src" == "$SRC_NAME" || "$deb_pkg" == "$pkg" || "$deb_pkg" == "$QUERY_PKG" ]]; then
+          rm -f "$deb"
+        fi
+      done
       mv -f ../*.deb "$REPO_DIR/pool/main/"
       update_local_apt_repo
     else
