@@ -82,7 +82,23 @@ cat << 'EOF' > "${ROOTFS_DIR}/etc/udev/rules.d/99-usb-dirty-bytes.rules"
 ACTION=="add|change", SUBSYSTEM=="block", ENV{ID_BUS}=="usb", ATTR{bdi/max_bytes}="41943040", ATTR{bdi/strict_limit}="1"
 EOF
 
+# Pre-build local packages so they can be installed during chroot setup
+for local_pkg in rpi-power-profiles rpi-suspend lmde-pi-default-settings; do
+	if [ -d "../../../packages/${local_pkg}/DEBIAN" ]; then
+		dpkg-deb --root-owner-group -b "../../../packages/${local_pkg}" "${ROOTFS_DIR}/tmp/${local_pkg}.deb" >/dev/null
+	fi
+done
+
 on_chroot <<- \EOF
+	export DEBIAN_FRONTEND=noninteractive
+
+	# Install local packages if staged
+	for local_pkg in rpi-power-profiles rpi-suspend lmde-pi-default-settings; do
+		if [ -f "/tmp/${local_pkg}.deb" ]; then
+			apt-get install -y --no-install-recommends "/tmp/${local_pkg}.deb" || dpkg -i "/tmp/${local_pkg}.deb" || true
+			rm -f "/tmp/${local_pkg}.deb"
+		fi
+	done
 	# Ensure Xorg modesetting configuration for vc4 on Raspberry Pi
 	install -d -m 755 /etc/X11/xorg.conf.d
 	cat << 'XCONF' > /etc/X11/xorg.conf.d/99-vc4.conf
@@ -119,13 +135,11 @@ XCONF
 	flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo || true
 	glib-compile-schemas /usr/share/glib-2.0/schemas || true
 
-	# Use Pi OS native ZRAM-only mechanism (avoids /var/swap file on compressed Btrfs)
-	install -d -m 755 /etc/rpi/swap.conf.d
-	cat <<- 'SWAPCONF' > /etc/rpi/swap.conf.d/zram-only.conf
-	[Main]
-	Mechanism=zram
-	SWAPCONF
-	rm -f /var/swap /etc/systemd/zram-generator.conf
+	# Ensure swap file is removed (dynamic ZRAM is handled via systemd-zram-generator & lmde-pi-default-settings)
+	rm -f /var/swap
+	if [ -f /etc/rpi/swap.conf ]; then
+		sed -i 's/^Mechanism=.*/Mechanism=zram/' /etc/rpi/swap.conf 2>/dev/null || true
+	fi
 
 	# Ensure /etc/environment does not contain overrides that could break desktop sessions
 	sed -i '/^GDK_BACKEND=/d' /etc/environment 2>/dev/null || true
@@ -212,8 +226,8 @@ disable e2scrub_all.timer
 disable apt-listchanges.timer
 EOF_PRESET
 
-	systemctl enable lightdm rpi-eeprom-update.service ModemManager.service blueman-mechanism.service fstrim.timer bluetooth.service packagekit.service debian-system-adjustments.service mintsystem.service || true
-	systemctl disable ssh.service ssh.socket e2scrub_reap.service e2scrub_all.timer 2>/dev/null || true
+	systemctl enable lightdm rpi-eeprom-update.service blueman-mechanism.service fstrim.timer bluetooth.service packagekit.service debian-system-adjustments.service mintsystem.service earlyoom.service || true
+	systemctl disable ssh.service ssh.socket ModemManager.service e2scrub_reap.service e2scrub_all.timer 2>/dev/null || true
 	systemctl mask NetworkManager-wait-online.service systemd-networkd-wait-online.service rpi-resize.service systemd-firstboot.service 2>/dev/null || true
 	systemctl set-default graphical.target
 EOF

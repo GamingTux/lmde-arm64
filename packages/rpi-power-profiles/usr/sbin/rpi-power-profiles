@@ -1,0 +1,530 @@
+#!/usr/bin/env python3
+"""
+rpi-power-profiles — Generic Hardware Power Profiles Daemon for Raspberry Pi 5, Pi 500 & CM5.
+
+Event-driven (0% idle CPU overhead) drop-in replacement for power-profiles-daemon on BCM2712.
+Exports standard org.freedesktop.UPower.PowerProfiles and net.hadess.PowerProfiles D-Bus APIs.
+"""
+import glob
+import grp
+import json
+import os
+import pwd
+import signal
+import subprocess
+import time
+
+import dbus
+import dbus.mainloop.glib
+import dbus.service
+from gi.repository import GLib
+
+BUS_NAME_UPOWER = "org.freedesktop.UPower.PowerProfiles"
+BUS_NAME_HADESS = "net.hadess.PowerProfiles"
+OBJECT_PATH_UPOWER = "/org/freedesktop/UPower/PowerProfiles"
+OBJECT_PATH_HADESS = "/net/hadess/PowerProfiles"
+INTERFACE_UPOWER = "org.freedesktop.UPower.PowerProfiles"
+INTERFACE_HADESS = "net.hadess.PowerProfiles"
+INTERFACE_PROPS = "org.freedesktop.DBus.Properties"
+
+STATE_DIR = "/var/lib/rpi-power-profiles"
+CONFIG_FILE = os.path.join(STATE_DIR, "config.json")
+
+DEFAULT_CONFIG = {
+    "active_profile": "balanced",
+    "brightness": {
+        "power-saver": 35,
+        "balanced": 70,
+        "performance": 90,
+    },
+}
+
+GOVERNOR_MAP = {
+    "power-saver": "powersave",
+    "balanced": "schedutil",
+    "performance": "performance",
+}
+
+
+def write_sysfs(path, value):
+    try:
+        if os.path.isfile(path):
+            with open(path, "w") as fp:
+                fp.write(str(value))
+            return True
+    except OSError:
+        pass
+    return False
+
+
+def has_portable_backlight():
+    """Only manage internal panel brightness on battery-powered portable Pi 5 / CM5 builds."""
+    return bool(glob.glob("/sys/class/power_supply/BAT*") and glob.glob("/sys/class/backlight/*"))
+
+
+def read_thermal_degradation():
+    """Lazy thermal throttle check (>= 80°C on BCM2712 cpu-thermal) with zero background polling."""
+    try:
+        with open("/sys/class/thermal/thermal_zone0/temp", "r") as fp:
+            if int(fp.read().strip()) >= 80000:
+                return "high-operating-temperature"
+    except (OSError, ValueError):
+        pass
+    return ""
+
+
+def apply_governor(profile):
+    gov = GOVERNOR_MAP.get(profile, "schedutil")
+    seen_policies = set()
+    actual_gov = gov
+
+    for cpu in sorted(glob.glob("/sys/devices/system/cpu/cpu[0-9]*/cpufreq")):
+        real_policy = os.path.realpath(cpu)
+        if real_policy in seen_policies:
+            continue
+        seen_policies.add(real_policy)
+        maxinfo_path = os.path.join(real_policy, "cpuinfo_max_freq")
+        max_path = os.path.join(real_policy, "scaling_max_freq")
+        gov_path = os.path.join(real_policy, "scaling_governor")
+        avail_path = os.path.join(real_policy, "scaling_available_governors")
+        target_gov = gov
+        try:
+            if os.path.isfile(avail_path):
+                with open(avail_path, "r") as fp:
+                    avail = fp.read().split()
+                if target_gov == "schedutil" and "schedutil" not in avail and "ondemand" in avail:
+                    target_gov = "ondemand"
+                elif target_gov == "ondemand" and "ondemand" not in avail and "schedutil" in avail:
+                    target_gov = "schedutil"
+            if os.path.isfile(maxinfo_path) and os.path.isfile(max_path):
+                with open(maxinfo_path, "r") as fp:
+                    top_freq = fp.read().strip()
+                with open(max_path, "w") as fp:
+                    fp.write(top_freq)
+        except OSError:
+            pass
+        actual_gov = target_gov
+        write_sysfs(gov_path, target_gov)
+
+    # KRubus 0.5 ms (500 µs) Cortex-A76 schedutil ramp-up
+    for su_dir in ["/sys/devices/system/cpu/cpufreq/schedutil"] + glob.glob(
+        "/sys/devices/system/cpu/cpufreq/policy*/schedutil"
+    ):
+        if os.path.isdir(su_dir):
+            write_sysfs(os.path.join(su_dir, "rate_limit_us"), "500")
+
+    for od_dir in ["/sys/devices/system/cpu/cpufreq/ondemand"] + glob.glob(
+        "/sys/devices/system/cpu/cpufreq/policy*/ondemand"
+    ):
+        if os.path.isdir(od_dir):
+            write_sysfs(os.path.join(od_dir, "sampling_rate"), "10000")
+            write_sysfs(os.path.join(od_dir, "up_threshold"), "25")
+            write_sysfs(os.path.join(od_dir, "sampling_down_factor"), "10")
+            write_sysfs(os.path.join(od_dir, "io_is_busy"), "1")
+
+    print(f"[rpi-power-profiles] Governor set to '{actual_gov}' for profile '{profile}'")
+
+
+def apply_system_power_tweaks(profile):
+    # Keep NVMe PCIe runtime PM ('power/control') at 'on' on BCM2712 (paired with APST 5500 µs)
+    for nvme_ctrl in glob.glob("/sys/class/nvme/nvme*/device/power/control"):
+        write_sysfs(nvme_ctrl, "on")
+
+    aspm_path = "/sys/module/pcie_aspm/parameters/policy"
+    if profile == "performance":
+        if not write_sysfs(aspm_path, "performance"):
+            write_sysfs(aspm_path, "default")
+    elif profile == "balanced":
+        if not write_sysfs(aspm_path, "default"):
+            write_sysfs(aspm_path, "powersave")
+    else:
+        write_sysfs(aspm_path, "powersave")
+
+    # Schedule kernel workqueues onto already-awake cores unless maximum performance is requested
+    write_sysfs("/sys/module/workqueue/parameters/power_efficient", "Y" if profile != "performance" else "N")
+
+    # Keep RP1 xHCI (xhci-hcd.*) and DWC2 (*.usb) controllers at 'on' for reliable USB hotplug
+    for usb_ctrl in (
+        glob.glob("/sys/bus/platform/devices/*.usb/power/control")
+        + glob.glob("/sys/bus/platform/devices/xhci-hcd.*/power/control")
+    ):
+        write_sysfs(usb_ctrl, "on")
+
+    if profile == "power-saver":
+        write_sysfs("/proc/sys/vm/dirty_writeback_centisecs", "1500")
+        write_sysfs("/proc/sys/vm/laptop_mode", "5")
+    else:
+        write_sysfs("/proc/sys/vm/dirty_writeback_centisecs", "500")
+        write_sysfs("/proc/sys/vm/laptop_mode", "0")
+
+
+def apply_wifi_powersave(profile):
+    mode = "on" if profile == "power-saver" else "off"
+    interfaces = []
+    try:
+        out = subprocess.check_output(["/usr/sbin/iw", "dev"], text=True, timeout=5)
+        for line in out.splitlines():
+            line = line.strip()
+            if line.startswith("Interface "):
+                interfaces.append(line.split()[1])
+    except Exception:
+        pass
+    if not interfaces:
+        interfaces = [os.path.basename(p) for p in glob.glob("/sys/class/net/wlan*")]
+    for iface in interfaces:
+        try:
+            subprocess.run(
+                ["/usr/sbin/iw", "dev", iface, "set", "power_save", mode],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+                check=False,
+            )
+        except Exception:
+            pass
+
+
+def set_portable_brightness(val):
+    if not has_portable_backlight():
+        return
+    val = max(5, min(100, int(val)))
+    for bl in glob.glob("/sys/class/backlight/*"):
+        try:
+            max_b = 100
+            max_path = os.path.join(bl, "max_brightness")
+            if os.path.isfile(max_path):
+                with open(max_path, "r") as fp:
+                    max_b = int(fp.read().strip())
+            target = max(1, int(round((val / 100.0) * max_b)))
+            with open(os.path.join(bl, "brightness"), "w") as fp:
+                fp.write(str(target))
+        except OSError:
+            pass
+
+
+def read_portable_brightness():
+    if not has_portable_backlight():
+        return None
+    for bl in glob.glob("/sys/class/backlight/*"):
+        try:
+            bl_power = os.path.join(bl, "bl_power")
+            if os.path.isfile(bl_power):
+                with open(bl_power, "r") as fp:
+                    if int(fp.read().strip()) != 0:
+                        return None
+            max_b = 100
+            max_path = os.path.join(bl, "max_brightness")
+            if os.path.isfile(max_path):
+                with open(max_path, "r") as fp:
+                    max_b = int(fp.read().strip())
+            with open(os.path.join(bl, "brightness"), "r") as fp:
+                cur = int(fp.read().strip())
+                return int(round((cur / float(max_b)) * 100.0))
+        except (OSError, ValueError):
+            pass
+    return None
+
+
+class ProfileManager:
+    def __init__(self):
+        self.config = {
+            "active_profile": DEFAULT_CONFIG["active_profile"],
+            "brightness": dict(DEFAULT_CONFIG["brightness"]),
+        }
+        self.load_config()
+        self.user_profile = self.config["active_profile"]
+        self.services = []
+        self.holds = []
+        self.hold_owners = {}
+        self.cookie_counter = 1
+        self.ignore_brightness_until = time.time() + 3.0
+
+    def load_config(self):
+        if os.path.isfile(CONFIG_FILE):
+            try:
+                with open(CONFIG_FILE, "r") as f:
+                    data = json.load(f)
+                if isinstance(data, dict):
+                    if data.get("active_profile") in GOVERNOR_MAP:
+                        self.config["active_profile"] = data["active_profile"]
+                    if isinstance(data.get("brightness"), dict):
+                        for k, v in data["brightness"].items():
+                            if k in GOVERNOR_MAP and isinstance(v, (int, float)):
+                                self.config["brightness"][k] = max(5, min(100, int(v)))
+            except Exception as e:
+                print(f"[rpi-power-profiles] Config read error: {e}")
+
+    def save_config(self):
+        try:
+            os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
+            temp_file = CONFIG_FILE + ".tmp"
+            with open(temp_file, "w") as f:
+                json.dump(self.config, f, indent=2)
+            os.replace(temp_file, CONFIG_FILE)
+        except OSError as e:
+            print(f"[rpi-power-profiles] Failed to save config: {e}")
+
+    @property
+    def active_profile(self):
+        return self.config["active_profile"]
+
+    def sync_current_brightness(self):
+        if time.time() < self.ignore_brightness_until:
+            return
+        cur = read_portable_brightness()
+        if cur is not None and cur >= 5:
+            stored = self.config["brightness"].get(self.active_profile, 70)
+            if cur != stored:
+                self.config["brightness"][self.active_profile] = cur
+                self.save_config()
+
+    def notify_properties_changed(self, changed_dict):
+        changed = dbus.Dictionary(changed_dict, signature=dbus.Signature("sv"))
+        for srv in self.services:
+            srv.PropertiesChanged(srv.interface_name, changed, dbus.Array([], signature=dbus.Signature("s")))
+
+    def notify_profile_released(self, cookie):
+        for srv in self.services:
+            srv.emit_profile_released(cookie)
+
+    def on_name_owner_changed(self, name, _old_owner, new_owner):
+        if new_owner or not name:
+            return
+        expired = [c for c, owner in list(self.hold_owners.items()) if owner == name]
+        for cookie in expired:
+            self.release_hold_by_cookie(cookie, emit_signal=False)
+
+    def release_hold_by_cookie(self, cookie, emit_signal=True):
+        cookie = int(cookie)
+        self.hold_owners.pop(cookie, None)
+        before = len(self.holds)
+        self.holds = [h for h in self.holds if int(h.get(dbus.String("Cookie"), 0)) != cookie]
+        if len(self.holds) != before:
+            if emit_signal:
+                self.notify_profile_released(cookie)
+            if self.holds:
+                next_prof = str(self.holds[-1][dbus.String("Profile")])
+                self.set_active_profile(next_prof, from_hold=True)
+            else:
+                self.set_active_profile(self.user_profile, from_hold=True)
+
+    def set_active_profile(self, profile, initial=False, from_hold=False):
+        if profile not in GOVERNOR_MAP:
+            return
+
+        if not from_hold:
+            self.user_profile = profile
+            if self.holds:
+                released_cookies = [int(h.get(dbus.String("Cookie"), 0)) for h in self.holds]
+                self.holds.clear()
+                self.hold_owners.clear()
+                for c in released_cookies:
+                    self.notify_profile_released(c)
+
+        if not initial and profile != self.config["active_profile"]:
+            self.sync_current_brightness()
+
+        self.config["active_profile"] = profile
+        if not from_hold:
+            self.save_config()
+
+        apply_governor(profile)
+        apply_system_power_tweaks(profile)
+        apply_wifi_powersave(profile)
+
+        if has_portable_backlight():
+            set_portable_brightness(self.config["brightness"].get(profile, 70))
+            self.ignore_brightness_until = time.time() + 2.5
+
+        self.notify_properties_changed(
+            {
+                dbus.String("ActiveProfile"): dbus.String(profile, variant_level=1),
+                dbus.String("ActiveProfileHolds"): dbus.Array(self.holds, signature=dbus.Signature("a{sv}")),
+            }
+        )
+
+
+class BasePowerProfilesService(dbus.service.Object):
+    interface_name = ""
+
+    def __init__(self, bus, path, manager):
+        super().__init__(bus, path)
+        self.bus = bus
+        self.manager = manager
+        self.manager.services.append(self)
+
+    def get_all_properties(self):
+        profiles_list = dbus.Array(
+            [
+                dbus.Dictionary(
+                    {
+                        dbus.String("Profile"): dbus.String(prof, variant_level=1),
+                        dbus.String("Driver"): dbus.String("cpufreq", variant_level=1),
+                        dbus.String("PlatformDriver"): dbus.String("bcm2712", variant_level=1),
+                    },
+                    signature=dbus.Signature("sv"),
+                )
+                for prof in ("power-saver", "balanced", "performance")
+            ],
+            signature=dbus.Signature("a{sv}"),
+        )
+
+        props = {
+            dbus.String("ActiveProfile"): dbus.String(self.manager.active_profile, variant_level=1),
+            dbus.String("PerformanceInhibited"): dbus.String("", variant_level=1),
+            dbus.String("PerformanceDegraded"): dbus.String(read_thermal_degradation(), variant_level=1),
+            dbus.String("Profiles"): profiles_list,
+            dbus.String("Actions"): dbus.Array([], signature=dbus.Signature("s")),
+            dbus.String("ActionsInfo"): dbus.Array([], signature=dbus.Signature("a{sv}")),
+            dbus.String("ActiveProfileHolds"): dbus.Array(self.manager.holds, signature=dbus.Signature("a{sv}")),
+            dbus.String("Version"): dbus.String("0.30", variant_level=1),
+            dbus.String("BatteryAware"): dbus.Boolean(bool(glob.glob("/sys/class/power_supply/BAT*")), variant_level=1),
+        }
+        return dbus.Dictionary(props, signature=dbus.Signature("sv"))
+
+    @dbus.service.method(INTERFACE_PROPS, in_signature="ss", out_signature="v")
+    def Get(self, _interface_name, property_name):
+        props = self.get_all_properties()
+        if property_name in props:
+            return props[property_name]
+        raise dbus.exceptions.DBusException(f"Property {property_name} not found")
+
+    @dbus.service.method(INTERFACE_PROPS, in_signature="s", out_signature="a{sv}")
+    def GetAll(self, _interface_name):
+        return self.get_all_properties()
+
+    def _is_sender_authorized(self, sender):
+        if not sender:
+            return True
+        try:
+            uid = int(self.bus.get_unix_user(sender))
+            if uid == 0 or os.path.isdir(f"/run/user/{uid}"):
+                return True
+            uname = pwd.getpwuid(uid).pw_name
+            for gname in ("sudo", "wheel", "video", "plugdev", "netdev"):
+                try:
+                    if uname in grp.getgrnam(gname).gr_mem:
+                        return True
+                except KeyError:
+                    pass
+        except Exception:
+            pass
+        return False
+
+    @dbus.service.method(INTERFACE_PROPS, in_signature="ssv", sender_keyword="sender")
+    def Set(self, _interface_name, property_name, new_value, sender=None):
+        if not self._is_sender_authorized(sender):
+            raise dbus.exceptions.DBusException("Permission denied")
+        if property_name == "ActiveProfile":
+            val = str(new_value)
+            if val in GOVERNOR_MAP:
+                self.manager.set_active_profile(val)
+                return
+            raise dbus.exceptions.DBusException(f"Invalid profile {val}")
+        raise dbus.exceptions.DBusException(f"Property {property_name} is read-only")
+
+    @dbus.service.signal(INTERFACE_PROPS, signature="sa{sv}as")
+    def PropertiesChanged(self, interface_name, changed_properties, invalidated_properties):
+        pass
+
+    def _hold_profile(self, profile, reason, application_id, sender):
+        if not self._is_sender_authorized(sender):
+            raise dbus.exceptions.DBusException("Permission denied")
+        prof_str = str(profile)
+        if prof_str not in GOVERNOR_MAP:
+            raise dbus.exceptions.DBusException(f"Invalid profile {prof_str}")
+        cookie = self.manager.cookie_counter
+        self.manager.cookie_counter += 1
+        hold = dbus.Dictionary(
+            {
+                dbus.String("Profile"): dbus.String(prof_str, variant_level=1),
+                dbus.String("Reason"): dbus.String(str(reason), variant_level=1),
+                dbus.String("ApplicationId"): dbus.String(str(application_id), variant_level=1),
+                dbus.String("Cookie"): dbus.UInt32(cookie, variant_level=1),
+            },
+            signature=dbus.Signature("sv"),
+        )
+        self.manager.holds.append(hold)
+        if sender:
+            self.manager.hold_owners[cookie] = str(sender)
+        self.manager.set_active_profile(prof_str, from_hold=True)
+        return dbus.UInt32(cookie)
+
+    def _release_profile(self, cookie, sender):
+        if not self._is_sender_authorized(sender):
+            raise dbus.exceptions.DBusException("Permission denied")
+        self.manager.release_hold_by_cookie(cookie, emit_signal=True)
+
+    def emit_profile_released(self, cookie):
+        pass
+
+
+class UPowerProfilesService(BasePowerProfilesService):
+    interface_name = INTERFACE_UPOWER
+
+    @dbus.service.method(INTERFACE_UPOWER, in_signature="sss", out_signature="u", sender_keyword="sender")
+    def HoldProfile(self, profile, reason, application_id, sender=None):
+        return self._hold_profile(profile, reason, application_id, sender)
+
+    @dbus.service.method(INTERFACE_UPOWER, in_signature="u", sender_keyword="sender")
+    def ReleaseProfile(self, cookie, sender=None):
+        self._release_profile(cookie, sender)
+
+    @dbus.service.signal(INTERFACE_UPOWER, signature="u")
+    def ProfileReleased(self, cookie):
+        pass
+
+    def emit_profile_released(self, cookie):
+        self.ProfileReleased(dbus.UInt32(cookie))
+
+
+class HadessProfilesService(BasePowerProfilesService):
+    interface_name = INTERFACE_HADESS
+
+    @dbus.service.method(INTERFACE_HADESS, in_signature="sss", out_signature="u", sender_keyword="sender")
+    def HoldProfile(self, profile, reason, application_id, sender=None):
+        return self._hold_profile(profile, reason, application_id, sender)
+
+    @dbus.service.method(INTERFACE_HADESS, in_signature="u", sender_keyword="sender")
+    def ReleaseProfile(self, cookie, sender=None):
+        self._release_profile(cookie, sender)
+
+    @dbus.service.signal(INTERFACE_HADESS, signature="u")
+    def ProfileReleased(self, cookie):
+        pass
+
+    def emit_profile_released(self, cookie):
+        self.ProfileReleased(dbus.UInt32(cookie))
+
+
+if __name__ == "__main__":
+    dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+    bus = dbus.SystemBus()
+    manager = ProfileManager()
+
+    srv_upower = UPowerProfilesService(bus, OBJECT_PATH_UPOWER, manager)
+    srv_hadess = HadessProfilesService(bus, OBJECT_PATH_HADESS, manager)
+
+    bus.add_signal_receiver(
+        manager.on_name_owner_changed,
+        signal_name="NameOwnerChanged",
+        dbus_interface="org.freedesktop.DBus",
+    )
+
+    bus.request_name(BUS_NAME_UPOWER)
+    bus.request_name(BUS_NAME_HADESS)
+
+    manager.set_active_profile(manager.active_profile, initial=True)
+
+    loop = GLib.MainLoop()
+
+    def on_shutdown(*_args):
+        manager.sync_current_brightness()
+        loop.quit()
+        return False
+
+    GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGTERM, on_shutdown)
+    GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGINT, on_shutdown)
+
+    print("Started Raspberry Pi 5 / CM5 PowerProfiles Daemon (Event-Driven, 0% Idle Overhead)")
+    loop.run()

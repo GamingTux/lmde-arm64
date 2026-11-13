@@ -1,0 +1,5 @@
+[D-BUS Service]
+Name=net.hadess.PowerProfiles
+Exec=/usr/sbin/rpi-power-profiles
+User=root
+SystemdService=rpi-power-profiles.service

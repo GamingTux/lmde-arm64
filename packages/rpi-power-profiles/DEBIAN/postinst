@@ -1,0 +1,33 @@
+#!/bin/bash
+set -e
+
+mkdir -p /var/lib/rpi-power-profiles
+chmod 755 /var/lib/rpi-power-profiles
+
+if ! ischroot 2>/dev/null; then
+    # Reload D-Bus policy immediately (before dpkg triggers run) so owning the bus name is allowed right away
+    busctl call org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus ReloadConfig >/dev/null 2>&1 || \
+        systemctl reload dbus.service 2>/dev/null || true
+    systemctl daemon-reload 2>/dev/null || true
+    systemctl unmask rpi-power-profiles.service 2>/dev/null || true
+    systemctl enable rpi-power-profiles.service 2>/dev/null || true
+    systemctl restart rpi-power-profiles.service 2>/dev/null || true
+
+    # Reconnect active KDE Plasma PowerDevil user sessions so the Power Profile
+    # slider becomes available immediately without logging out or rebooting
+    for bus_sock in /run/user/[0-9]*/bus; do
+        [ -S "$bus_sock" ] || continue
+        uid_dir="$(dirname "$bus_sock")"
+        uid="$(basename "$uid_dir")"
+        uname="$(id -nu "$uid" 2>/dev/null || true)"
+        [ -n "$uname" ] || continue
+        runuser -u "$uname" -- env \
+            XDG_RUNTIME_DIR="$uid_dir" \
+            DBUS_SESSION_BUS_ADDRESS="unix:path=$bus_sock" \
+            systemctl --user try-restart plasma-powerdevil.service >/dev/null 2>&1 || true
+    done
+else
+    systemctl enable rpi-power-profiles.service 2>/dev/null || true
+fi
+
+exit 0

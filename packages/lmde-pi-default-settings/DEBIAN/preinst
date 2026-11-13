@@ -1,0 +1,29 @@
+#!/bin/bash
+set -e
+
+# When adopting pre-existing untracked files into the package, remove untracked versions
+# so dpkg installs conffiles cleanly without interactive prompt
+if [ "$1" = "install" ] || [ "$1" = "upgrade" ]; then
+    for cfg in \
+        /etc/sysctl.d/99-lmde-pi5.conf \
+        /etc/systemd/zram-generator.conf \
+        /etc/systemd/journald.conf.d/99-persistent.conf \
+        /etc/systemd/system.conf.d/99-lmde-timeout.conf \
+        /etc/systemd/user.conf.d/99-lmde-timeout.conf \
+        /etc/pipewire/pipewire.conf.d/99-lmde.conf \
+        /etc/udev/rules.d/60-ondemand-governor.rules \
+        /etc/udev/rules.d/90-lmde-runtime.rules \
+        /etc/environment.d/99-lmde.conf \
+        /etc/modules-load.d/bbr.conf \
+        /etc/modules-load.d/i2c-dev.conf \
+        /etc/chromium.d/99-lmde-flags \
+        /etc/systemd/system/earlyoom.service.d/lmde.conf \
+        /etc/systemd/system/plymouth-quit.service.d/retain-splash.conf \
+        /etc/systemd/system/user@.service.d/timeout.conf; do
+        if [ -f "$cfg" ] && ! dpkg-query -S "$cfg" >/dev/null 2>&1; then
+            rm -f "$cfg"
+        fi
+    done
+fi
+
+exit 0

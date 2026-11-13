@@ -1,0 +1,20 @@
+Package: lmde-pi-default-settings
+Version: 1.0.0
+Architecture: all
+Maintainer: LMDE ARM64 Project <https://github.com/GamingTux/lmde-arm64>
+Section: admin
+Priority: optional
+Homepage: https://github.com/GamingTux/lmde-arm64
+Depends: systemd, systemd-zram-generator, earlyoom, pipewire
+Recommends: rpi-power-profiles, rpi-suspend
+Description: Default system tuning and performance profiles for LMDE (Pi 5)
+ Central system tuning and performance configuration for Linux Mint Debian Edition
+ on Raspberry Pi 5, Pi 500 and Compute Module 5 (BCM2712 / Cortex-A76):
+  - Dynamic ZRAM zstd compression scaled up to 8 GB (prevents OOM lockups)
+  - Ultra-low-latency 0.5 ms schedutil governor & MGLRU working-set tuning
+  - TCP BBR congestion control, fastopen, and optimized socket buffer ceilings
+  - EarlyOOM crash protection for Cinnamon desktop sessions
+  - PipeWire multi-rate native audio engine (44.1 kHz - 96 kHz)
+  - Mesa single-file shader cache and flash-safe journald persistence
+  - I/O scheduler and read-ahead tuning for NVMe SSDs and SD/eMMC storage
+  - Kernel boot image sync hook for /boot/firmware

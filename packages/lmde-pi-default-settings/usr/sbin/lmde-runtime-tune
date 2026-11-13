@@ -1,0 +1,28 @@
+#!/bin/sh
+# Ensure 0.5 ms Cortex-A76 schedutil ramp-up & MGLRU 1000 ms working-set protection
+[ -w /sys/devices/system/cpu/cpufreq/schedutil/rate_limit_us ] && echo 500 > /sys/devices/system/cpu/cpufreq/schedutil/rate_limit_us 2>/dev/null || true
+[ -w /sys/kernel/mm/lru_gen/enabled ] && echo 0x0007 > /sys/kernel/mm/lru_gen/enabled 2>/dev/null || true
+[ -w /sys/kernel/mm/lru_gen/min_ttl_ms ] && echo 1000 > /sys/kernel/mm/lru_gen/min_ttl_ms 2>/dev/null || true
+
+# Spread heavy ARM64 GICv2 Level IRQs across CPU0..CPU3
+for irq_dir in /proc/irq/[0-9]*; do
+    [ -d "$irq_dir" ] || continue
+    aff_file="$irq_dir/smp_affinity_list"
+    [ -w "$aff_file" ] || continue
+    for action_dir in "$irq_dir"/*; do
+        [ -d "$action_dir" ] || continue
+        name=$(basename "$action_dir")
+        case "$name" in
+            *dwc2*) echo 1 > "$aff_file" 2>/dev/null || true; break ;;
+            *v3d*) echo 2 > "$aff_file" 2>/dev/null || true; break ;;
+            *vc4*|*hvs*|*mmc0*|*mmc1*) echo 3 > "$aff_file" 2>/dev/null || true; break ;;
+        esac
+    done
+done
+
+# Enable 4-Core Receive Packet Steering (RPS/RFS) on active network interfaces
+for rx_dir in /sys/class/net/wlan*/queues/rx-0 /sys/class/net/eth*/queues/rx-0; do
+    [ -d "$rx_dir" ] || continue
+    echo f > "$rx_dir/rps_cpus" 2>/dev/null || true
+    echo 4096 > "$rx_dir/rps_flow_cnt" 2>/dev/null || true
+done

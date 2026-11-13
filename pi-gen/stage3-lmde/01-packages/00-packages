@@ -92,3 +92,8 @@ fonts-noto-color-emoji
 fonts-dejavu-core
 fonts-noto-core
 fonts-liberation
+systemd-zram-generator
+earlyoom
+lmde-pi-default-settings
+rpi-power-profiles
+rpi-suspend

@@ -1,0 +1,8 @@
+# 1. Remove forced accessibility penalty from rpi-chromium-mods
+CHROMIUM_FLAGS=$(echo "$CHROMIUM_FLAGS" | sed "s/--force-renderer-accessibility//g")
+
+# 2. Source user flags from ~/.config/chromium-flags.conf if present
+if [ -n "$HOME" ] && [ -f "$HOME/.config/chromium-flags.conf" ]; then
+    USER_FLAGS=$(grep -v "^[[:space:]]*#" "$HOME/.config/chromium-flags.conf" | grep -v "^[[:space:]]*$" | tr "\n" " ")
+    CHROMIUM_FLAGS="$CHROMIUM_FLAGS $USER_FLAGS"
+fi

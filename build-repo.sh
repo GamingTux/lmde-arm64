@@ -262,6 +262,7 @@ if [[ -d "$ROOT_DIR/packages" ]]; then
     target_deb="$REPO_DIR/pool/main/${pkg_name}_${pkg_ver}_${pkg_arch}.deb"
 
     echo "📦 Baue lokales Debian-Paket ${pkg_name} (${pkg_ver})..."
+    rm -f "$REPO_DIR/pool/main/${pkg_name}_"*.deb
     dpkg-deb --root-owner-group -b "$pkg_dir" "$target_deb" >/dev/null
     ALLOWED_SOURCES+=("$pkg_name")
   done

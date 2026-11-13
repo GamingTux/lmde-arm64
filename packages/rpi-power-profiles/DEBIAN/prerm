@@ -1,0 +1,5 @@
+#!/bin/bash
+set -e
+systemctl stop rpi-power-profiles.service 2>/dev/null || true
+systemctl disable rpi-power-profiles.service 2>/dev/null || true
+exit 0

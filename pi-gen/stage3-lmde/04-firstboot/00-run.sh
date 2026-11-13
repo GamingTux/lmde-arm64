@@ -264,7 +264,7 @@ done
 
 AUTOLOGIN="no"
 if whiptail --title "LMDE First-Boot Setup (5/5) - Automatic Login" \
-    --yesno "Would you like to automatically log into the Cinnamon Wayland desktop without entering your password on boot?\n\n(Select 'No' to require your password on the login screen)" 12 70; then
+    --yesno "Would you like to automatically log into the Cinnamon desktop without entering your password on boot?\n\n(Select 'No' to require your password on the login screen)" 12 70; then
     AUTOLOGIN="yes"
     groupadd -f autologin 2>/dev/null || true
     usermod -aG autologin "$NEW_USER" 2>/dev/null || true
@@ -280,33 +280,30 @@ if [ -n "$USER_HOME" ] && [ -d "$USER_HOME" ]; then
     chown -R "${NEW_USER}:${NEW_USER}" "$USER_HOME/.linuxmint" 2>/dev/null || true
 fi
 
-# Pure Wayland LightDM configuration (pi-greeter-labwc -> cinnamon-wayland)
+# Standard LMDE LightDM configuration (slick-greeter -> cinnamon X11, wayland optional)
 mkdir -p /etc/lightdm/lightdm.conf.d
-rm -f /etc/lightdm/lightdm.conf.d/90-slick-greeter.conf
+rm -f /etc/lightdm/lightdm.conf.d/90-lmde-wayland.conf
 if [ "$AUTOLOGIN" = "yes" ]; then
-    cat << LCONF > /etc/lightdm/lightdm.conf.d/90-lmde-wayland.conf
+    cat << LCONF > /etc/lightdm/lightdm.conf.d/90-slick-greeter.conf
 [SeatDefaults]
-user-session=cinnamon-wayland
+user-session=cinnamon
 
 [Seat:*]
-greeter-session=pi-greeter-labwc
-user-session=cinnamon-wayland
-autologin-session=cinnamon-wayland
-session-wrapper=/usr/sbin/lightdm-wayland-session
+greeter-session=slick-greeter
+user-session=cinnamon
+autologin-session=cinnamon
 greeter-hide-users=false
 autologin-user=${NEW_USER}
 autologin-user-timeout=0
 LCONF
 else
-    cat << LCONF > /etc/lightdm/lightdm.conf.d/90-lmde-wayland.conf
+    cat << LCONF > /etc/lightdm/lightdm.conf.d/90-slick-greeter.conf
 [SeatDefaults]
-user-session=cinnamon-wayland
+user-session=cinnamon
 
 [Seat:*]
-greeter-session=pi-greeter-labwc
-user-session=cinnamon-wayland
-autologin-session=cinnamon-wayland
-session-wrapper=/usr/sbin/lightdm-wayland-session
+greeter-session=slick-greeter
+user-session=cinnamon
 greeter-hide-users=false
 LCONF
 fi

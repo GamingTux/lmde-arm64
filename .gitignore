@@ -11,3 +11,4 @@ pi-gen/deploy/
 .build_failed
 __pycache__/
 *.py[cod]
+update-stick.sh

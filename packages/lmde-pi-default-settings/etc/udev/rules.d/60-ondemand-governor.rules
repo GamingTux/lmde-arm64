@@ -1,0 +1,2 @@
+KERNEL=="cpu*", SUBSYSTEM=="cpu", ATTR{cpufreq/scaling_governor}="schedutil"
+KERNEL=="cpu0", SUBSYSTEM=="cpu", RUN+="/bin/sh -c 'echo 500 > /sys/devices/system/cpu/cpufreq/schedutil/rate_limit_us 2>/dev/null || true'"

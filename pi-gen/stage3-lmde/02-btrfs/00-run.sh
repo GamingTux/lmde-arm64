@@ -4,12 +4,12 @@
 cat << 'EOF' > "${ROOTFS_DIR}/etc/fstab"
 proc            /proc           proc    defaults          0       0
 BOOTDEV  /boot/firmware  vfat    defaults,noatime,x-systemd.automount,nofail  0  0
-ROOTDEV  /               btrfs   defaults,compress=zstd:1,noatime,commit=60 0 0
+ROOTDEV  /               btrfs   defaults,compress=zstd:1,noatime,commit=60,space_cache=v2 0 0
 EOF
 
 # 2. Kernel-Kommandozeile (/boot/firmware/cmdline.txt) auf rootfstype=btrfs & Plymouth Bootscreen (mint-logo) umstellen
 if [ -f "${ROOTFS_DIR}/boot/firmware/cmdline.txt" ]; then
-	sed -i 's/rootfstype=ext4/rootfstype=btrfs rootflags=compress=zstd:1,noatime,commit=60/g' "${ROOTFS_DIR}/boot/firmware/cmdline.txt"
+	sed -i 's/rootfstype=ext4/rootfstype=btrfs rootflags=compress=zstd:1,noatime,commit=60,space_cache=v2/g' "${ROOTFS_DIR}/boot/firmware/cmdline.txt"
 	sed -i 's/fsck.repair=yes/fsck.repair=no/g' "${ROOTFS_DIR}/boot/firmware/cmdline.txt"
 	sed -i 's/\bresize\b//g; s/[[:space:]]*$//' "${ROOTFS_DIR}/boot/firmware/cmdline.txt"
 	if ! grep -q "splash" "${ROOTFS_DIR}/boot/firmware/cmdline.txt"; then

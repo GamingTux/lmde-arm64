@@ -1,0 +1,5 @@
+[D-BUS Service]
+Name=org.freedesktop.UPower.PowerProfiles
+Exec=/usr/sbin/rpi-power-profiles
+User=root
+SystemdService=rpi-power-profiles.service

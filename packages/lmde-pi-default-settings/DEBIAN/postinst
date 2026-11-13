@@ -1,0 +1,96 @@
+#!/bin/bash
+set -e
+
+chmod 755 /usr/sbin/lmde-runtime-tune 2>/dev/null || true
+chmod 755 /etc/kernel/postinst.d/zz-lmde-kernel 2>/dev/null || true
+
+# Adopt package conffiles if dpkg created .dpkg-dist due to pre-existing files
+for cfg in \
+    /etc/sysctl.d/99-lmde-pi5.conf \
+    /etc/systemd/zram-generator.conf \
+    /etc/systemd/journald.conf.d/99-persistent.conf \
+    /etc/systemd/system.conf.d/99-lmde-timeout.conf \
+    /etc/systemd/user.conf.d/99-lmde-timeout.conf \
+    /etc/pipewire/pipewire.conf.d/99-lmde.conf \
+    /etc/udev/rules.d/60-ondemand-governor.rules \
+    /etc/udev/rules.d/90-lmde-runtime.rules \
+    /etc/environment.d/99-lmde.conf \
+    /etc/chromium.d/99-lmde-flags \
+    /etc/skel/.config/chromium-flags.conf; do
+    if [ -f "${cfg}.dpkg-dist" ]; then
+        mv -f "${cfg}.dpkg-dist" "$cfg"
+    fi
+done
+
+# Ensure existing user sessions have chromium performance flags if missing
+for homedir in /home/*; do
+    [ -d "$homedir" ] || continue
+    if [ ! -f "$homedir/.config/chromium-flags.conf" ] && [ -f /etc/skel/.config/chromium-flags.conf ]; then
+        install -d -m 755 -o "$(stat -c '%U' "$homedir")" -g "$(stat -c '%G' "$homedir")" "$homedir/.config"
+        cp /etc/skel/.config/chromium-flags.conf "$homedir/.config/chromium-flags.conf"
+        chown "$(stat -c '%U:%G' "$homedir")" "$homedir/.config/chromium-flags.conf" 2>/dev/null || true
+    fi
+done
+
+# Clean up conflicting /etc/rpi/swap.conf or volatile settings if present
+if [ -f /etc/rpi/swap.conf ]; then
+    sed -i 's/^Mechanism=.*/Mechanism=zram/' /etc/rpi/swap.conf 2>/dev/null || true
+fi
+rm -f /var/swap
+
+# Mask network wait-online services to eliminate offline/DHCP boot delays
+systemctl mask NetworkManager-wait-online.service systemd-networkd-wait-online.service 2>/dev/null || true
+
+# Enable core services
+systemctl enable earlyoom.service 2>/dev/null || true
+
+if ! ischroot 2>/dev/null; then
+    # 1. Apply kernel sysctl tweaks immediately
+    sysctl --system >/dev/null 2>&1 || true
+
+    # 2. Run runtime hardware IRQ/MGLRU tuning
+    /usr/sbin/lmde-runtime-tune >/dev/null 2>&1 || true
+
+    # 3. Reload udev rules
+    udevadm control --reload 2>/dev/null || true
+
+    # 4. Restart earlyoom with Cinnamon crash protection
+    systemctl try-restart earlyoom.service 2>/dev/null || true
+
+    # 5. Reload journald with syslog suppression
+    systemctl try-reload-or-restart systemd-journald.service 2>/dev/null || true
+
+    # 6. Ensure MESA_DISK_CACHE_SINGLE_FILE is in /etc/environment
+    if [ -f /etc/environment ] && ! grep -q "MESA_DISK_CACHE_SINGLE_FILE" /etc/environment; then
+        echo "MESA_DISK_CACHE_SINGLE_FILE=1" >> /etc/environment
+    fi
+
+    # 7. Reload PipeWire in running desktop user sessions
+    for bus_sock in /run/user/[0-9]*/bus; do
+        [ -S "$bus_sock" ] || continue
+        uid_dir="$(dirname "$bus_sock")"
+        uid="$(basename "$uid_dir")"
+        uname="$(id -nu "$uid" 2>/dev/null || true)"
+        [ -n "$uname" ] || continue
+        runuser -u "$uname" -- env \
+            XDG_RUNTIME_DIR="$uid_dir" \
+            DBUS_SESSION_BUS_ADDRESS="unix:path=$bus_sock" \
+            systemctl --user try-restart pipewire.service >/dev/null 2>&1 || true
+    done
+
+    # 8. Reload ZRAM to activate zstd algorithm and new scaling (if swap is unused)
+    if [ -b /dev/zram0 ]; then
+        cur_used="$(swapon --noheadings --show=USED /dev/zram0 2>/dev/null | xargs || true)"
+        if [ "$cur_used" = "0B" ] || [ -z "$cur_used" ]; then
+            swapoff /dev/zram0 >/dev/null 2>&1 || true
+            systemctl restart systemd-zram-setup@zram0.service >/dev/null 2>&1 || true
+        fi
+    fi
+
+    # 9. Sync kernel hook if needed
+    if [ -x /etc/kernel/postinst.d/zz-lmde-kernel ]; then
+        /etc/kernel/postinst.d/zz-lmde-kernel >/dev/null 2>&1 || true
+    fi
+fi
+
+exit 0
