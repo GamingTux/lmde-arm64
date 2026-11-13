@@ -1,0 +1,42 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+Architectures: arm64
+Codename: gigi
+Components: main
+Date: Fri, 13 Nov 2026 17:52:14 +0000
+Label: LMDE-ARM64
+Origin: LMDE-ARM64
+Suite: gigi
+MD5Sum:
+ fb39e309ecd10b1f2d4e941e278ae367              140 Release
+ 7c5c65049f3e2ac73ce63b06a06aae46          1515152 main/binary-arm64/Packages
+ 9fcc6935c5a2e2b5a4bc4aa2f2bef5e7           364887 main/binary-arm64/Packages.gz
+SHA1:
+ 42f62e1129d383f11e18d95798d8c19d3e742392              140 Release
+ fc04ba8cdb245b7ed8bbc7fffdf150eb4a317d48          1515152 main/binary-arm64/Packages
+ 60c1c0c41a64f020b72d7e59f4d49b3423424b97           364887 main/binary-arm64/Packages.gz
+SHA256:
+ ba02ba0fc10b23de8127c9b4bc505bc2546e5c2f5e626c15e67d9d178f320735              140 Release
+ 2ed3406169551ac0f8f79c6ccb63f406baf0626da26d178153b17274425756e9          1515152 main/binary-arm64/Packages
+ 81282947a2a9ef3f331d3a1b05438804351ae459884e7892c7737d8bee59b23f           364887 main/binary-arm64/Packages.gz
+SHA512:
+ c144e1c6ef785bc9a86dc22fdf39e7f2bc114f58bc2b905fe49a491aa00296c49f286743388cd637f4ae340106eee709ae2fc4c56ee43a22afedd0903dbaf6ba              140 Release
+ f04b5894e0db0b255d20fa4fcdd64382ce27efeadcc2e0c6ebb490de5dd51859f7e686c8ff33bafb0a156d3cd750295ada91460701b8a1fa692dc1db860bcd68          1515152 main/binary-arm64/Packages
+ 99c35af459f530b7ec6f6e48f2681fa95ef361b1f453484d2499d70c317abc5e25cf77dff153b290a500ac10ba398b26d8b0873d40a1d3672d6855a5b3af929e           364887 main/binary-arm64/Packages.gz
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCgAdFiEEdIFhZ3xIjkTrcM7iR8CM4VXYJxkFAmr3Tk4ACgkQR8CM4VXY
+JxnApBAAmsFVrCdL5ZIEHFuys10oDXbRFOKldpqxNRRkztxywlGCL0HvwymJY9Eq
+U5YAIvABdco/45Y1UdlXHSNlfGBZC9hnIY2Q5PXmJyWTo232l/t+rgCPzGAxAk15
+9zQkLrtupW4DR8iAULxdcwoHE9CiQfmKF7U4JD9FJchUtR84RRmUBR84MLHXWwPO
+yyL9c/7RNMZtX8E10BmxIQXPaFRGRmsFGQ+vT9Nxk+FwIzg5edUA8rFpnfAZEKin
+WtGtVK8EuPuLmULey9O5LYWdmcPMWTpTg8JLRF2/Y9GZNtxKd1scz0tqV8K0IPjT
+VTr5dBDKJVxFtMc78ToulptqJLVpu9nBm+wbNJj/C7jx1cNTvO30R1j0XPCFnXWH
+NzOWXTiyp7Iz8bSnYCCoMvPf8IqsZjXyACJl0QikiSnWtsoRwPe1u8/UxOm6qTdr
+aqj3Hf++syQ+Li19i2h11hapVC3Z8/mvH1Xv6NeAeDqhXoqNCF6iATVmlRRgOdI8
+FwsAQjKlre2bqLsOAiwqaKfD9ANpJLA2BPbVilJUCUQWj9554UzvTENvimU5XABK
+04/uoGLhOSr0/QmmufGaPFt6zIH26/Ch/2tXcfeCBpTlnP/oYhxHFNosPme2bgo9
+nw245dt8ipW6cIGE0PbxCUrUD409a5MxzSxjR0XRz8pvEk8ZTgI=
+=m7VY
+-----END PGP SIGNATURE-----
